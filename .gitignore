@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+node_modules/
+.reference/
+backups/
+release/
+components/ally-power/dist/
+components/bluetooth-trust-manager/dist/
+.env
+*.log

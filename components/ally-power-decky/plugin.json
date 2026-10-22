@@ -1,0 +1,10 @@
+{
+  "name": "Ally Power",
+  "author": "Ally Power",
+  "flags": ["root"],
+  "api_version": 1,
+  "publish": {
+    "tags": ["power", "rog-ally", "tdp", "smt"],
+    "description": "Control manual de TDP, SMT, núcleos e hilos; sin perfiles automáticos ni gestores simultáneos."
+  }
+}
