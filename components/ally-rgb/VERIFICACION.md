@@ -1,6 +1,6 @@
 # Verificación 1.0.0
 
-- TypeScript estricto, Rollup, 46 pruebas Python y 12 JavaScript correctos.
+- TypeScript estricto, Rollup, 56 pruebas Python y 13 JavaScript correctos.
 - Cuatro efectos distintos compuestos a la vez; cambiar selección no cambia el frame.
 - Editar otra zona mantiene el tiempo de las ya activas y conserva un único trabajador.
 - Selección pura sin escrituras, bloqueo ni reinicio de tiempos; en inicio vacío tampoco
@@ -13,6 +13,9 @@
 - Validación de cuatro configuraciones individuales y migración de esquemas de desarrollo anteriores.
 - Se mantienen pruebas de exclusión, cambios externos, pérdida de dispositivo, rollback,
   límites de color/brillo, guardado atómico, corrupción, recuperación optativa y apagado.
+- Batería interna frente a mando detectado primero, BAT0 sin scope, scope Device/System,
+  0%, datos inválidos/ausentes/inaccesibles y desconexión de la batería interna; nunca
+  se usa la de un periférico. Interfaz con «batería sin datos» si no hay lectura válida.
 - No se escriben TDP, SMT, ventiladores, EC ni MCU; no depende de termios/serial/HID.
 
 Las pruebas usan dispositivos temporales y no acreditan el color físico de los LED.

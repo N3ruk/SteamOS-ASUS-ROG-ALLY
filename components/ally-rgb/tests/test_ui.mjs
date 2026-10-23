@@ -156,3 +156,8 @@ test('mixed group selection preserves independent effects until an explicit grou
   h.find(h.render(),'Efecto').props.onChange({data:'gradient'});await h.flush();
   assert.deepEqual(h.state.config.zones.map(zone=>zone.effect),['gradient','gradient','solid','solid']);
 });
+
+test('unknown system battery is shown as unavailable rather than a guessed percentage',async()=>{
+  const h=harness();h.state.battery=null;await h.ready();
+  assert.match(JSON.stringify(h.render()),/batería sin datos/);
+});

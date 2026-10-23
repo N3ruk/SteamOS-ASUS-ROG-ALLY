@@ -143,13 +143,31 @@ def frame(config, seconds, battery=None):
     return colors, brightness
 
 
-def battery_level():
-    for supply in Path('/sys/class/power_supply').glob('*'):
+def battery_level(root=Path('/sys/class/power_supply')):
+    """Read the internal BAT* supply, never a controller/peripheral battery.
+
+    ASUS BAT0 does not expose scope on every kernel. Its standard system battery
+    name is accepted without scope; an explicit Device/unknown scope is not.
+    """
+    try:
+        supplies = sorted(root.glob('BAT[0-9]*'), key=lambda p: (p.name != 'BAT0', p.name))
+    except OSError:
+        return None
+    for supply in supplies:
+        if not re.fullmatch(r'BAT[0-9]+', supply.name):
+            continue
         try:
-            if read(supply / 'type') == 'Battery':
-                value = int(read(supply / 'capacity'))
-                if 0 <= value <= 100:
-                    return value
+            if read(supply / 'type') != 'Battery':
+                continue
+            scope = supply / 'scope'
+            if scope.exists() and read(scope) != 'System':
+                continue
+            present = supply / 'present'
+            if present.exists() and read(present) != '1':
+                continue
+            value = int(read(supply / 'capacity'))
+            if 0 <= value <= 100:
+                return value
         except (OSError, ValueError):
             pass
     return None

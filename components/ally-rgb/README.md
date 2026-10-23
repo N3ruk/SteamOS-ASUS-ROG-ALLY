@@ -8,7 +8,8 @@ no controla TDP, SMT, ventiladores, carga ni el MCU. Ally X no está validada en
 - Cuatro zonas RGB con efectos, colores y velocidades **independientes y simultáneos**.
 - El selector cambia únicamente las zonas que editas: todas, parejas o una a una; no detiene otras zonas.
 - Brillo 0–100%, encendido/apagado; el brillo es común a los cuatro LED porque el kernel expone un único ajuste.
-- Color fijo, respiración, arcoíris, onda, transición y color según batería.
+- Color fijo, respiración, arcoíris, onda, transición y color según la batería interna de la Ally.
+- El porcentaje y el efecto Batería excluyen mandos, ratones y otros periféricos. Si no se puede leer la interna, se indica «batería sin datos», sin adivinar un porcentaje.
 - Color manual con deslizadores R/G/B; sin colores rápidos, perfiles ni botones adicionales.
 - Transición con **Color inicial** y **Color final** independientes y velocidad regulable.
 - **Recuperar al despertar/encender** guarda automáticamente la última configuración aplicada,

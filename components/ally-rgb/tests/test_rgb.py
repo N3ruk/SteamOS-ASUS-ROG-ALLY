@@ -197,6 +197,79 @@ class EffectTests(unittest.TestCase):
         with self.assertRaises(rgb.RGBError): rgb.frame(cfg,0,None)
 
 
+class BatteryTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+
+    def supply(self, name, capacity='50', scope=None, present=None, kind='Battery'):
+        path = self.root / name
+        path.mkdir(exist_ok=True)
+        for key, value in dict(type=kind, capacity=capacity, scope=scope, present=present).items():
+            field = path / key
+            if value is None:
+                if field.exists(): field.unlink()
+            else: field.write_text(str(value))
+        return path
+
+    def test_controller_discovered_first_does_not_replace_internal_without_scope(self):
+        self.supply('ps-controller-battery-test', '99', scope='Device')
+        self.supply('BAT0', '41')
+        self.assertEqual(rgb.battery_level(self.root), 41)
+
+    def test_internal_without_controller_including_zero_percent(self):
+        self.supply('BAT0', '0')
+        self.assertEqual(rgb.battery_level(self.root), 0)
+
+    def test_only_peripherals_never_report_system_battery(self):
+        self.supply('ps-controller-battery-test', '99', scope='Device')
+        self.supply('hid-mouse-battery', '67')
+        self.assertIsNone(rgb.battery_level(self.root))
+
+    def test_invalid_or_missing_internal_capacity_never_falls_back_to_controller(self):
+        self.supply('ps-controller-battery-test', '99', scope='Device')
+        for value in ('bad', '101', '-1', None):
+            self.supply('BAT0', value)
+            self.assertIsNone(rgb.battery_level(self.root), value)
+
+    def test_unreadable_internal_returns_unknown_not_controller_percentage(self):
+        self.supply('ps-controller-battery-test', '99', scope='Device')
+        internal = self.supply('BAT0', '41')
+        original = rgb.read
+        def blocked(path):
+            if path == internal / 'capacity': raise PermissionError('unreadable fixture')
+            return original(path)
+        with patch.object(rgb, 'read', side_effect=blocked):
+            self.assertIsNone(rgb.battery_level(self.root))
+
+    def test_absent_internal_is_ignored(self):
+        self.supply('BAT0', '41', present='0')
+        self.supply('ps-controller-battery-test', '99', scope='Device')
+        self.assertIsNone(rgb.battery_level(self.root))
+
+    def test_explicit_device_scope_is_rejected_even_with_system_style_name(self):
+        self.supply('BAT0', '99', scope='Device')
+        self.assertIsNone(rgb.battery_level(self.root))
+
+    def test_system_scope_and_primary_internal_are_preferred(self):
+        self.supply('BAT1', '23', scope='System')
+        self.supply('BAT0', '41', scope='System', present='1')
+        self.assertEqual(rgb.battery_level(self.root), 41)
+
+    def test_unknown_scope_nonbattery_and_missing_directory_are_not_guessed(self):
+        self.supply('BAT0', '41', scope='Unknown')
+        self.assertIsNone(rgb.battery_level(self.root))
+        self.supply('BAT0', '41', scope='System', kind='Mains')
+        self.assertIsNone(rgb.battery_level(self.root))
+        self.assertIsNone(rgb.battery_level(self.root / 'missing'))
+
+    def test_reading_battery_is_read_only(self):
+        self.supply('BAT0', '41', present='1')
+        with patch.object(Path, 'write_text', side_effect=AssertionError('battery read must not write')):
+            self.assertEqual(rgb.battery_level(self.root), 41)
+
+
 class SettingsTests(unittest.TestCase):
     def test_last_config_is_atomic_and_retains_disabled_preference(self):
         with tempfile.TemporaryDirectory() as directory:

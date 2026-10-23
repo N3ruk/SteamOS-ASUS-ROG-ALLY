@@ -3,8 +3,8 @@
 ## Suite 1.0.0
 
 - 42 pruebas de selección, catálogo, integridad, instaladores y adaptadores Decky.
-- ALLY RGB: 46 pruebas Python y 12 JavaScript; TypeScript estricto y Rollup correctos.
-- 100 pruebas automatizadas de la suite y ALLY RGB en esta verificación. Los números
+- ALLY RGB: 56 pruebas Python y 13 JavaScript; TypeScript estricto y Rollup correctos.
+- 111 pruebas automatizadas de la suite y ALLY RGB en esta verificación. Los números
   se refieren a casos de prueba, no a equipos físicos.
 
 La interfaz gráfica se prueba con todas las casillas desmarcadas. No ofrece Ally Power
@@ -44,6 +44,11 @@ corrupto no aplica colores; no se sobreescribe el archivo corrupto.
 Backend/frontend cargados y readback de animaciones existentes observados en una RC71L:
 las ondas continuaron al seleccionar otra zona. Esto no es una observación visual del color
 físico ni un ciclo real de apagado/suspensión. El empaquetado no reinstala el plugin activo.
+
+El lector de batería se prueba con mando conectado/desconectado, periférico detectado
+primero con porcentaje distinto, BAT0 sin scope, marcado Device, batería ausente y datos
+inválidos/inaccesibles. Tanto el porcentaje como el efecto usan la batería interna.
+Una lectura desconocida no toma la de otro dispositivo y se muestra sin datos.
 
 ## Otras aplicaciones y límites
 

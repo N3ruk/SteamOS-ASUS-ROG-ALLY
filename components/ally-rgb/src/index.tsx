@@ -100,7 +100,7 @@ function Content() {
   const displayColors = state.active && state.actual ? state.actual.hex : config.zones.map(zone=>zone.color);
   return <>
     <PanelSection><Note><strong>ALLY RGB</strong> · 4 zonas
-      {state.battery !== null ? ` · batería ${state.battery}%` : ''}
+      {state.battery !== null ? ` · batería ${state.battery}%` : ' · batería sin datos'}
       <div style={{display: 'flex', gap: 12, padding: '12px 0'}}>{displayColors.map((c,i) => <div key={i} title={`Zona ${i+1}: ${c}${selected.includes(i) ? ' · seleccionada' : ''}`} style={{background:c, color:'#fff', textShadow:'0 1px 3px #000', display:'grid', placeItems:'center', width:38, height:38, borderRadius:'50%', border:selected.includes(i) ? '3px solid #d1fff2' : '3px solid #556168', opacity:selected.includes(i) ? 1 : .55}}>{i+1}</div>)}</div>
       <div>{pending ? 'Aplicando el último cambio…' : status}</div>
     </Note></PanelSection>

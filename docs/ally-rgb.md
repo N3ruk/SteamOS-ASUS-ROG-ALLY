@@ -7,7 +7,7 @@ No modifica TDP, SMT, núcleos/hilos, carga, ventiladores, EC ni MCU. Ally X no 
 
 - Cuatro zonas RGB, todas, por parejas o una a una.
 - **Efecto, velocidad, color y transición propios de cada zona**, funcionando simultáneamente.
-- Color fijo, respiración, arcoíris, onda, transición y batería.
+- Color fijo, respiración, arcoíris, onda, transición y batería interna de la Ally.
 - Color manual mediante canales rojo/verde/azul; transición con **Color inicial** y **Color final**.
 - Brillo y encendido/apagado generales. El kernel expone un único brillo para los cuatro LED.
 - **Recuperar al despertar/encender** guarda automáticamente la configuración completa de las cuatro zonas.
@@ -19,6 +19,11 @@ para ese grupo. Los cambios se aplican en tiempo real, sin botón Aplicar.
 
 Las zonas se numeran 1–4; no se promete un mapa físico izquierda/derecha no confirmado.
 No incluye colores rápidos, perfiles, botones de control adicionales ni sincronización con audio/pantalla.
+
+El porcentaje y el efecto **Batería** leen la batería interna (`BAT0`), no la de los
+mandos u otros periféricos. Se admiten baterías internas sin atributo `scope`, pero se
+excluye `scope=Device`. Si no hay lectura interna válida aparece «batería sin datos»;
+el efecto Batería no se aplica con un porcentaje inventado.
 
 ## Instalar
 
@@ -84,7 +89,7 @@ y `max_brightness=255`. Escribe únicamente `multi_intensity` (cuatro valores RR
 - [Verificación y límites de la suite](VERIFICATION.md).
 - [Licencias y referencias](../components/ally-rgb/THIRD-PARTY.md).
 
-58 pruebas automatizadas (46 Python y 12 JavaScript), compilación TypeScript/Rollup y carga
+69 pruebas automatizadas (56 Python y 13 JavaScript), compilación TypeScript/Rollup y carga
 real del backend/frontend comprobadas. Se observó por readback que los efectos ya activos continúan
 al seleccionar otra zona. No equivale a verificar visualmente los colores, un ciclo físico de
 suspensión/encendido o una instalación nueva en cualquier modelo de Ally.

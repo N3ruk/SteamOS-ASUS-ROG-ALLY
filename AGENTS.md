@@ -11,3 +11,5 @@
 
 - ALLY RGB es RGB solo: preservar efectos/colores/velocidades independientes, selección de editor sin escrituras y recuperación optativa. Su versión de distribución es 1.0.0. No reinstalarlo en el host mientras esté activo para comprobar embalaje.
 - Para refrescar solo centralizado y RGB, usar `build.py --only central ally-rgb`, conservar los cinco individuales previos y verificar los siete paquetes.
+
+- ALLY RGB debe leer únicamente batería interna de sistema (BAT0/BATn); nunca sustituirla por una batería de mando/periférico al faltar datos. Mantener pruebas con porcentajes distintos.
