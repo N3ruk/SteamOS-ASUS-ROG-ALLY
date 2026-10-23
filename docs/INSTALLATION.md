@@ -25,17 +25,28 @@ Vuelve a ejecutar el paquete deseado. Los lanzadores mantienen la copia original
 
 Cierra Ally Power (incluida la bandeja) antes de actualizarlo; cierra Confianza Bluetooth antes de sustituirla. No se cierran por ti.
 
-Decky: sal de Gaming para que el plugin deje de controlar hardware. Se comprueba `get_state.active` y se guarda una copia ZIP antes de sustituir una versión reconocida (1.0.0/1.1.0). Si no se localiza la carpeta o no se puede leer, no se actualiza. Para rutas no estándar, define `DECKY_PLUGIN_DIR` como carpeta padre de `ally-power-decky`. La integración automática se comprobó contra la API local de Decky **3.3.0**; si cambia, el adaptador falla con un mensaje, no fuerza un reinicio ni copia archivos como root. La conexión WebSocket puede reemplazar brevemente la conexión de su frontend, que vuelve a conectarse.
+Decky: sal de Gaming para que el plugin deje de controlar hardware. Se comprueba `get_state.active` y se guarda una copia ZIP antes de sustituir una versión reconocida (1.0.0/1.1.0). Si no se localiza la carpeta o no se puede leer, no se actualiza. Para rutas no estándar, define `DECKY_PLUGIN_DIR` como carpeta padre de `ally-power-decky` o `ally-rgb`. La integración automática se comprobó contra la API local de Decky **3.3.0**; si cambia, el adaptador falla con un mensaje, no fuerza un reinicio ni copia archivos como root. La conexión WebSocket puede reemplazar brevemente la conexión de su frontend, que vuelve a conectarse.
 
 ## Desinstalar
 
 - **Lanzadores:** busca «Desinstalar Return to Gaming Mode» o «Desinstalar Alternar arranque de SteamOS» en el menú. Devuelve los archivos originales, o retira los añadidos si antes no existían. Guarda recibo recuperable `removed-*.json`. Si se detectan cambios manuales, no se toca nada. La carpeta vacía y `operation.lock` pueden quedarse; no son procesos.
 - **Ally Power:** usa su desinstalador del menú o el `.run` original incluido con `--uninstall`.
 - **Bluetooth:** desinstalador del menú o `.run` original con `--uninstall`.
-- **Decky:** ajustes de Decky → Plugins → Ally Power → desinstalar. No añade un segundo gestor de desinstalación privilegiada.
+- **Decky:** ajustes de Decky → Plugins → Ally Power o ALLY RGB → desinstalar. No añade un segundo gestor de desinstalación privilegiada.
 
 Desinstalar el lanzador de arranque **no cambia** el modo predeterminado ya elegido. Desinstalar el lanzador Gaming no cambia la sesión actual. Si una actualización del sistema sustituye iconos o ficheros gestionados, revísalos antes de restaurar; nunca se sobrescriben a ciegas.
 
 ## Convivencia de gestores
 
 Puedes tener instaladas las variantes escritorio y Decky, pero no utilizarlas simultáneamente sobre el hardware. Cierra la app de escritorio antes de tomar control en Gaming. Los gestores detectables provocan rechazo; no son desinstalados, desactivados ni detenidos por la suite. La instalación no toma control de TDP ni SMT.
+
+## ALLY RGB
+
+[Guía completa de iluminación](ally-rgb.md). La opción se ofrece solo con RC71L e interfaz RGB
+compatibles, Decky activo y aiohttp. No instala ni activa Decky. No sustituye un backend
+que controle iluminación o esté pausado con recuperación pendiente; no basta con salir de Gaming.
+Las copias de instalaciones reconocidas e inactivas se guardan en
+`$XDG_STATE_HOME/steamos-ally-suite/ally-rgb/`. Si desactivaste el plugin, usa el instalador
+nativo de Decky para actualizarlo. Ajustes previos con recuperación activada pueden restaurarse
+al cargar; en una instalación sin ajustes no se aplican luces. La suite no envía colores ni
+detiene otros gestores RGB.

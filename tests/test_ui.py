@@ -16,12 +16,14 @@ class SelectionTests(unittest.TestCase):
         from gi.repository import Gtk
         failures = {i: [] for i in engine.CATALOG}
         failures['ally-power-decky'] = ['Decky inactivo']
+        failures['ally-rgb'] = ['Decky inactivo']
         def inspect(app, _args):
             app.register(None)
             app.activate()
             try:
                 self.assertNotIn('ally-power-decky', app.boxes)
-                self.assertEqual(len(app.boxes), 4)
+                self.assertNotIn('ally-rgb', app.boxes)
+                self.assertEqual(len(app.boxes), len(engine.CATALOG)-2)
                 self.assertTrue(all(not box.get_active() for box in app.boxes.values()))
                 app.start()
                 self.assertIn('No has seleccionado', app.status.get_text())

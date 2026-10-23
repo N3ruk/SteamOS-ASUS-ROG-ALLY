@@ -28,21 +28,22 @@ def availability():
     return True, 'Decky Loader instalado y activo. API local compatible comprobada con Decky 3.3.0.'
 
 
-def backup_previous(version):
+def backup_previous(version, folder_name='ally-power-decky', plugin_name='Ally Power',
+                    author='Ally Power', backup_name='Ally-Power-Decky'):
     # An update must not discard an existing plugin without a recoverable copy.
-    folder = Path(os.environ.get('DECKY_PLUGIN_DIR', str(Path.home() / 'homebrew/plugins'))) / 'ally-power-decky'
+    folder = Path(os.environ.get('DECKY_PLUGIN_DIR', str(Path.home() / 'homebrew/plugins'))) / folder_name
     if not folder.is_dir() or folder.is_symlink():
         raise RuntimeError('No se localiza la instalación para guardar una copia. Configura DECKY_PLUGIN_DIR si Decky usa una ruta no estándar.')
     meta = json.loads((folder / 'plugin.json').read_text())
     package = json.loads((folder / 'package.json').read_text())
-    if meta.get('name') != 'Ally Power' or meta.get('author') != 'Ally Power' or package.get('version') != version:
+    if meta.get('name') != plugin_name or meta.get('author') != author or package.get('version') != version:
         raise RuntimeError('El plugin local no coincide con la versión registrada; no se sustituye.')
     state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state')))
     if not state.is_absolute():
         raise RuntimeError('XDG_STATE_HOME debe ser absoluto.')
-    out = state / 'steamos-ally-suite/ally-power-decky'
+    out = state / 'steamos-ally-suite' / folder_name
     from .launchers import guard
-    target = out / ('Ally-Power-Decky-backup-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f') + '.zip')
+    target = out / (backup_name + '-backup-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f') + '.zip')
     guard(target)
     out.mkdir(parents=True, exist_ok=True)
     paths = []

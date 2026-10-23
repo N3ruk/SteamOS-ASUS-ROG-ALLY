@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only end-to-end verification of all six ZIP/.run distributions."""
+"""Read-only end-to-end verification of all seven ZIP/.run distributions."""
 import hashlib
 import json
 from pathlib import Path
@@ -8,6 +8,7 @@ import tempfile
 import zipfile
 from build import NAMES
 from installer.engine import CATALOG, PAYLOADS
+from installer import rgb_decky
 
 ROOT = Path(__file__).resolve().parent
 
@@ -39,11 +40,25 @@ def verify_embedded_power(extracted, expected, temporary):
             raise RuntimeError('La topología CPU debe generarse al instalar, nunca empaquetarse.')
 
 
+
+def verify_embedded_rgb(extracted, expected):
+    if 'ally-rgb' not in expected:
+        return
+    payload = extracted / 'payloads' / PAYLOADS['ally-rgb']
+    digest = hashlib.sha256(payload.read_bytes()).hexdigest()
+    rgb_decky.check_payload(payload, digest, CATALOG['ally-rgb']['version'])
+    with zipfile.ZipFile(payload) as archive:
+        manifest = json.loads(archive.read('ally-rgb/manifest.json'))
+        for name in manifest['sha256']:
+            if archive.read('ally-rgb/' + name) != (extracted / 'components/ally-rgb' / name).read_bytes():
+                raise RuntimeError('Payload ALLY RGB y fuentes divergen: ' + name)
+
+
 def main():
     out = ROOT / 'release'
     sums = dict(line.split('  ', 1)[::-1] for line in (out / 'SHA256SUMS').read_text().splitlines())
     if set(sums) != {name + '.zip' for name in NAMES.values()}:
-        raise RuntimeError('Se necesitan exactamente seis entradas ZIP en SHA256SUMS.')
+        raise RuntimeError('Se necesitan exactamente siete entradas ZIP en SHA256SUMS.')
     with tempfile.TemporaryDirectory(prefix='suite-artifact-qa-') as temporary:
         temporary = Path(temporary)
         for component, name in NAMES.items():
@@ -66,6 +81,7 @@ def main():
             if manifest['components'] != expected:
                 raise RuntimeError('Componentes incorrectos: ' + name)
             verify_embedded_power(extracted, expected, temporary)
+            verify_embedded_rgb(extracted, expected)
             for i in expected:
                 if not (extracted / 'components' / i).is_dir() or not (extracted / 'docs' / (i + '.md')).is_file():
                     raise RuntimeError('Faltan fuentes/documentación: ' + i)
@@ -81,7 +97,7 @@ def main():
             if set(report) != set(expected):
                 raise RuntimeError('Informe de requisitos incorrecto: ' + name)
             print('OK: ' + zip_path.name + ' — integridad, extracción, fuentes y requisitos sin instalar')
-    print('6/6 paquetes verificados. No se han instalado apps ni modificado hardware/arranque/Bluetooth.')
+    print('7/7 paquetes verificados. No se han instalado apps ni modificado hardware/arranque/Bluetooth.')
 
 
 if __name__ == '__main__':

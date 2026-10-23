@@ -1,0 +1,24 @@
+{
+  "name": "ally-rgb",
+  "version": "1.0.0",
+  "description": "Iluminaci\u00f3n de cuatro zonas para ROG Ally en SteamOS. Sin control de potencia.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "rollup -c",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@decky/rollup": "1.0.2",
+    "@types/react": "19.1.1",
+    "@types/react-dom": "19.1.1",
+    "rollup": "4.60.0",
+    "typescript": "5.9.3"
+  },
+  "dependencies": {
+    "@decky/api": "1.1.3",
+    "@decky/ui": "4.12.1",
+    "tslib": "2.8.1"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "ALLY RGB",
+  "author": "SteamOS Ally contributors",
+  "flags": [
+    "root"
+  ],
+  "api_version": 1,
+  "publish": {
+    "tags": [
+      "RGB",
+      "ASUS",
+      "Ally"
+    ],
+    "description": "Iluminación por zonas para ROG Ally, transición de dos colores y recuperación al despertar/encender."
+  }
+}

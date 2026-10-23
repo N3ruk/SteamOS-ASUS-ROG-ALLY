@@ -1,10 +1,10 @@
 # SteamOS ASUS ROG ALLY
 
-Instalador **centralizado y opcional**, con cinco componentes independientes, documentación y paquetes individuales. No instala OpenClaw ni depende de él.
+Instalador **centralizado y opcional**, con seis componentes independientes, documentación y paquetes individuales. No instala OpenClaw ni depende de él.
 
 ## Descargar e instalar
 
-En la release hay **seis ZIP**: uno centralizado y uno por componente. Cada ZIP incluye un instalador `.run` autónomo con código fuente, licencias y documentación dentro.
+En la release hay **siete ZIP**: uno centralizado y uno por componente. Cada ZIP incluye un instalador `.run` autónomo con código fuente, licencias y documentación dentro.
 
 1. En modo escritorio, extrae el ZIP.
 2. Si hace falta, marca el `.run` como ejecutable en **Propiedades → Permisos**.
@@ -21,9 +21,10 @@ El centralizado no cambia el arranque, TDP, SMT ni dispositivos Bluetooth durant
 | [Alternar arranque](docs/default-mode.md) | Escritorio/Gaming como modo predeterminado del próximo arranque | No | SteamOS con `steamosctl` |
 | [Ally Power Escritorio](docs/ally-power.md) | TDP, SMT, núcleos e hilos | Sí, instalación y helper | Ally/Ally X Z1/Z1 Extreme |
 | [Ally Power Decky](docs/ally-power-decky.md) | Los mismos dominios de hardware desde Gaming, en tiempo real | API de Decky existente | Ally compatible y Decky instalado **y activo** |
+| [ALLY RGB](docs/ally-rgb.md) | Iluminación: cuatro efectos, colores y velocidades independientes; recuperar al despertar/encender | API de Decky existente | Ally RC71L, kernel RGB compatible y Decky instalado **y activo** |
 | [Confianza Bluetooth](docs/bluetooth-trust-manager.md) | Retirar confianza sin borrar emparejamientos; útil con mandos PS3 | No | SteamOS KDE con BlueZ y GTK4 |
 
-**Los controles de potencia no son universales**: se limitan a RC71L/RC72LA, AMD Ryzen Z1/Z1 Extreme y SteamOS x86_64. Los demás componentes no requieren un modelo Ally. No se promete compatibilidad con cualquier versión antigua o futura de SteamOS.
+**Los controles de potencia no son universales**: se limitan a RC71L/RC72LA, AMD Ryzen Z1/Z1 Extreme y SteamOS x86_64. ALLY RGB requiere RC71L y la interfaz LED de cuatro zonas; Ally X no está validada. Los lanzadores y Bluetooth no requieren un modelo Ally. No se promete compatibilidad con cualquier versión antigua o futura de SteamOS.
 
 ## Decisiones de diseño
 
@@ -32,6 +33,7 @@ El centralizado no cambia el arranque, TDP, SMT ni dispositivos Bluetooth durant
 - Los originales de los lanzadores, incluidos enlaces simbólicos, se guardan antes de sustituirlos. No se escribe en `/usr/share/applications`.
 - Escritorio y Decky comparten exclusión de hardware; no se detienen otros gestores. Detección de procesos y bloqueo no garantizan detectar firmware ni gestores desconocidos.
 - En Decky, **«TDP de Steam desactivado»** aparece primero tras «Ajuste manual»: habilita únicamente TDP del plugin. SMT/CPU no dependen de ese interruptor. Cambios en tiempo real, sin botones Aplicar, Liberar ni Restaurar.
+- ALLY RGB controla solo iluminación; elegir otra zona no detiene sus efectos. Puede recuperar ajustes RGB guardados al cargar si el usuario activó esa opción.
 - Se verifica SHA256 antes de invocar cada paquete. Esto detecta daños; no es una firma de autor.
 - No se recopila telemetría ni se envían dispositivos/configuraciones a internet. La integración Decky utiliza solo `127.0.0.1:1337`, con token en memoria.
 
@@ -48,7 +50,7 @@ bash SteamOS-ASUS-ROG-ALLY-1.0.0-SteamOS.run --extract fuentes
 ## Documentación y código
 
 - [Instalación, actualización y recuperación](docs/INSTALLATION.md)
-- [Compilar y generar los seis paquetes](docs/BUILD.md)
+- [Compilar y generar los siete paquetes](docs/BUILD.md)
 - [Pruebas y límites de verificación](docs/VERIFICATION.md)
 - [Notas de la release](docs/RELEASE.md)
 - [`installer/`](installer): selección, comprobaciones, transacciones y adaptador Decky.

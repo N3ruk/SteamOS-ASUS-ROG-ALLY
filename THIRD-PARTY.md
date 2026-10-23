@@ -2,7 +2,7 @@
 
 ## Código propio
 
-El instalador centralizado, nuevos instaladores de lanzadores, scripts, pruebas y documentación propios se distribuyen bajo MIT: [LICENSE](LICENSE). Ally Power, su plugin y Confianza Bluetooth conservan sus avisos MIT en cada subdirectorio. El SVG del mando de Confianza Bluetooth está cubierto por su licencia original.
+El instalador centralizado, nuevos instaladores de lanzadores, scripts, pruebas y documentación propios se distribuyen bajo MIT: [LICENSE](LICENSE). Ally Power, su plugin, ALLY RGB y Confianza Bluetooth conservan sus avisos MIT en cada subdirectorio. El SVG del mando de Confianza Bluetooth está cubierto por su licencia original.
 
 ## Iconos aportados
 
@@ -25,3 +25,11 @@ Entradas oficiales fijadas para Ally Power:
 - Adaptador de API Decky escrito para esta suite sobre `aiohttp`, biblioteca del sistema disponible en su instalación; no se distribuye ni instala automáticamente.
 
 La consulta previa de alternativas favoreció reutilizar los instaladores existentes y la API de Decky en vez de un segundo instalador privilegiado. La interfaz central propia cubre la selección y agrupación específicas solicitadas por el usuario.
+
+## ALLY RGB
+
+Código propio MIT y dependencias de Decky fijadas en `components/ally-rgb/package-lock.json`,
+con fuentes TypeScript/Python y licencias en su subdirectorio. React y UI se proporcionan
+por Decky; no se distribuye `node_modules`. Referencias al ABI de la Ally, HueSync y
+los avisos completos en [components/ally-rgb/THIRD-PARTY.md](components/ally-rgb/THIRD-PARTY.md).
+No se incluye código de HueSync, pyserial, controladores HID o gestores de potencia en este plugin.

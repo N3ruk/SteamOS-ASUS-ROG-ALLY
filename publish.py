@@ -52,7 +52,7 @@ def main():
         if '404' not in existing.stderr:
             raise RuntimeError('No se pudo comprobar el repositorio: ' + existing.stderr.strip())
         run([gh, 'repo', 'create', full, '--' + args.visibility,
-             '--description', 'Instalador centralizado y cinco utilidades independientes para SteamOS y ASUS ROG Ally'])
+             '--description', 'Instalador centralizado y seis utilidades independientes para SteamOS y ASUS ROG Ally'])
     url = 'https://github.com/' + full + '.git'
     remote = run(['git', 'remote', 'get-url', 'origin'], check=False)
     if remote.returncode == 0:
@@ -74,7 +74,7 @@ def main():
                   *map(str, assets)])
     info = json.loads(run([gh, 'release', 'view', TAG, '--repo', full, '--json', 'assets,url']).stdout)
     if {a['name'] for a in info['assets']} != {p.name for p in assets}:
-        raise RuntimeError('La release existe pero sus assets no coinciden con los siete esperados; revisa antes de darla por terminada.')
+        raise RuntimeError('La release existe pero sus assets no coinciden con los ocho esperados; revisa antes de darla por terminada.')
     with tempfile.TemporaryDirectory(prefix='ally-release-download-') as temporary:
         run([gh, 'release', 'download', TAG, '--repo', full, '--dir', temporary])
         for path in assets:
@@ -83,7 +83,7 @@ def main():
                 raise RuntimeError('El asset publicado no coincide con el local: ' + path.name)
     print('Repositorio: https://github.com/' + full)
     print('Release: ' + info['url'])
-    print('Verificados: seis ZIP y SHA256SUMS descargados de nuevo y comparados con los locales; sin sobrescribir assets.')
+    print('Verificados: siete ZIP y SHA256SUMS descargados de nuevo y comparados con los locales; sin sobrescribir assets.')
 
 
 if __name__ == '__main__':

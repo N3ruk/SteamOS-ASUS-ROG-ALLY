@@ -7,7 +7,7 @@ from pathlib import Path
 import platform
 import shutil
 import subprocess
-from . import decky, launchers
+from . import decky, rgb_decky, launchers
 
 CATALOG = {
     'return-gaming': {
@@ -26,6 +26,10 @@ CATALOG = {
         'name': 'Ally Power — Decky Gaming', 'version': '1.1.2',
         'description': 'Plugin para Gaming: cambios en tiempo real; TDP del plugin solo al activar «TDP de Steam desactivado». SMT independiente. No añade botones Aplicar, Liberar ni Restaurar.',
         'requirements': 'Mismo hardware que Ally Power; Decky instalado y activo, API local compatible y python3-aiohttp. No instala Decky.'},
+    'ally-rgb': {
+        'name': 'ALLY RGB — Decky', 'version': '1.0.0',
+        'description': 'Iluminación de cuatro zonas con efectos, colores y velocidades independientes; transición de dos colores y recuperación opcional al despertar/encender. No controla potencia ni ventiladores.',
+        'requirements': 'ROG Ally RC71L con SteamOS x86_64 y LED sysfs de cuatro zonas. Decky instalado y activo, python3-aiohttp. Ally X no validada; no instala Decky ni detiene otros gestores RGB.'},
     'bluetooth-trust-manager': {
         'name': 'Confianza Bluetooth', 'version': '1.0.0',
         'description': 'Lista dispositivos de confianza y permite retirar solo esa confianza, previa confirmación. Especialmente útil con mandos PS3 cuando, tras desvincularlos, no vuelve a aparecer la autorización USB. No borra claves de emparejamiento.',
@@ -34,6 +38,7 @@ CATALOG = {
 PAYLOADS = {
     'ally-power': 'Ally-Power-1.0.0-SteamOS-x86_64.run',
     'ally-power-decky': 'Ally-Power-Decky-1.1.0.zip',
+    'ally-rgb': 'ALLY-RGB-1.0.0.zip',
     'bluetooth-trust-manager': 'Confianza-Bluetooth-1.0.0-SteamOS.run',
 }
 
@@ -58,6 +63,23 @@ def ally_errors():
     if platform.machine() != 'x86_64' or not any(x in product for x in ('RC71L', 'RC72LA')) or 'AMD Ryzen Z1' not in read('/proc/cpuinfo'):
         return ['Ally Power requiere ROG Ally/Ally X Z1 o Z1 Extreme (RC71L/RC72LA), SteamOS x86_64.']
     return []
+
+
+
+def rgb_errors():
+    product = read('/sys/class/dmi/id/product_name')
+    if platform.machine() != 'x86_64' or 'ROG Ally' not in product or 'RC71L' not in product:
+        return ['ALLY RGB requiere ROG Ally RC71L con SteamOS x86_64. Ally X no está validada.']
+    base = Path('/sys/class/leds/ally:rgb:joystick_rings')
+    try:
+        colors = [int(v) for v in read(base / 'multi_intensity').split()]
+        valid = (read(base / 'multi_index').split() == ['rgb'] * 4 and
+                 read(base / 'max_brightness').strip() == '255' and
+                 len(colors) == 4 and all(0 <= c <= 0xffffff for c in colors) and
+                 0 <= int(read(base / 'brightness')) <= 255)
+    except ValueError:
+        valid = False
+    return [] if valid else ['El kernel no expone la interfaz RGB de cuatro zonas que necesita ALLY RGB.']
 
 
 def available(root):
@@ -87,13 +109,15 @@ def requirements(component, root, delegate=True):
     errors = host_errors()
     if component in ('ally-power', 'ally-power-decky'):
         errors += ally_errors()
+    if component == 'ally-rgb':
+        errors += rgb_errors()
     if component in launchers.IDS:
         for cmd in ('kdialog', 'steamosctl'):
             if not shutil.which(cmd):
                 errors.append('Falta ' + cmd)
         if component == 'return-gaming' and not (shutil.which('qdbus6') or shutil.which('qdbus')):
             errors.append('Falta qdbus6 o qdbus.')
-    if component == 'ally-power-decky':
+    if component in ('ally-power-decky', 'ally-rgb'):
         ok, reason = decky.availability()
         if not ok:
             errors.append(reason)
@@ -117,6 +141,9 @@ def install(component, root):
         receipt = launchers.install(component, root / 'components' / component)
         launchers.refresh()
         return 'Instalado para tu usuario. Copia original: ' + str(receipt)
+    if component == 'ally-rgb':
+        rel = 'payloads/' + PAYLOADS[component]
+        return asyncio.run(rgb_decky.install(root / rel, manifest['sha256'][rel], CATALOG[component]['version']))
     if component == 'ally-power-decky':
         rel = 'payloads/' + PAYLOADS[component]
         return asyncio.run(decky.install(root / rel, manifest['sha256'][rel], CATALOG[component]['version']))

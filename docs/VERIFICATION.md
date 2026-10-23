@@ -2,39 +2,60 @@
 
 ## Suite 1.0.0
 
-27 pruebas propias superadas; además, reejecutadas 21 de Ally Power, 13 de Bluetooth y 43 de Decky (35 Python + 8 JavaScript). Los números se refieren a pruebas automatizadas, no a equipos físicos.
+- 42 pruebas de selección, catálogo, integridad, instaladores y adaptadores Decky.
+- ALLY RGB: 46 pruebas Python y 12 JavaScript; TypeScript estricto y Rollup correctos.
+- 100 pruebas automatizadas de la suite y ALLY RGB en esta verificación. Los números
+  se refieren a casos de prueba, no a equipos físicos.
 
-La interfaz gráfica se prueba con casillas desmarcadas y sin ofrecer Decky inactivo.
+La interfaz gráfica se prueba con todas las casillas desmarcadas. No ofrece Ally Power
+Decky ni ALLY RGB cuando Decky está inactivo o faltan los requisitos de cada componente.
 
-Se prueban con hogares temporales y servicios simulados: instalación sin cambios de arranque/hardware, ruta con espacios, preservación de archivos/enlaces originales, reinstalación, desinstalación, rechazo de archivos modificados y de directorios enlazados, rollback ante fallo, exclusión de operaciones, integridad y rutas de manifiesto, Decky instalado/activo, petición correcta y rechazo de confirmaciones equivocadas.
+Se usan hogares temporales, servicios y dispositivos simulados: instalación sin cambiar
+sesión/arranque/hardware, rutas con espacios, archivos y enlaces originales, reinstalación,
+desinstalación, rechazo de modificaciones manuales/directorios enlazados, rollback y exclusión.
+También manifiestos corruptos/traversal, Decky instalado/activo, solicitud exacta, hashes y
+rechazo de confirmaciones de otro plugin. ALLY RGB no se sustituye si controla luces o está
+pausado; la copia de versiones conocidas se comprueba sin modificar ajustes.
 
-Los seis ZIP se extraen en directorios temporales, se verifica su `.run` y su manifiesto, la lista correcta de componentes y la presencia de fuentes/licencias. El comprobador central se ejecuta en la Ally sin instalar ni cambiar ajustes. No se ejecutan los scripts de cambio de sesión o arranque sobre el equipo real para probarlos.
+El adaptador RGB distingue archivos antiguos con la misma versión, verifica el manifiesto
+nativo y no reenvía una confirmación si el frontend reconecta. Los errores de transporte
+no muestran el token de la conexión. Nada descarga dependencias ni habilita servicios.
 
-## Aplicaciones incluidas
+## Paquetes
 
-Historial de las versiones originales: Ally Power escritorio 21 pruebas, Confianza Bluetooth 13 pruebas, Decky 35 Python + 8 JavaScript. La app Bluetooth fue probada manualmente por el usuario; el panel Decky 1.1.0 requiere aún prueba de interacción física en Gaming. La suma de pruebas no representa dispositivos físicamente validados.
+Los siete ZIP se extraen en temporal y se verifican `.run`, SHA256, manifiesto, catálogo,
+fuentes, licencias y `--check --json`, sin instalar. Se contrastan los payloads ejecutables
+con sus fuentes, incluyendo el ZIP nativo ALLY RGB 1.0.0. Los cinco individuales anteriores
+se conservan byte a byte al construir `--only central ally-rgb`. El centralizado contiene
+los seis componentes y el individual RGB solo ese componente.
 
-La instalación del centralizado sobre un sistema nuevo y otras Ally/Ally X todavía requiere verificación física. Los tests aislados no acreditan compatibilidad universal con todas las versiones de SteamOS, Decky o del cliente Steam. La integración TDP de Steam usa una interfaz interna susceptible de cambiar.
+Las fechas y orden de archivos son fijos. Un build selectivo repetido debe dar los mismos
+hashes de los siete ZIP y SHA256SUMS. Esto comprueba integridad, no es una firma de autor.
 
-El instalador no resuelve dependencias modificando el sistema. Si faltan, el componente queda no disponible con explicación. Ninguna prueba de empaquetado cambia tus ajustes de TDP, SMT, Bluetooth o arranque.
+## ALLY RGB
 
-## Ajustes de distribución sin cambio funcional
+Efectos, velocidades y colores independientes; cambiar la selección no modifica el frame,
+no escribe luces y no reinicia fases de otras zonas. Cuatro efectos distintos se componen
+en un único trabajador. Grupo mixto conserva ajustes hasta una edición explícita; cambios
+pendientes no se pierden al cambiar de selector. Las cuatro configuraciones sobreviven a
+reinicio del gestor y suspensión/reanudación simulados. Recuperación desactivada o archivo
+corrupto no aplica colores; no se sobreescribe el archivo corrupto.
 
-Se sustituyeron identificadores de dispositivo de los fixtures de pruebas Bluetooth por una dirección ficticia local. Se conservaron los textos de licencia npm en el plugin y se regeneraron ambos paquetes afectados. No cambió el código funcional de las aplicaciones originales.
+Backend/frontend cargados y readback de animaciones existentes observados en una RC71L:
+las ondas continuaron al seleccionar otra zona. Esto no es una observación visual del color
+físico ni un ciclo real de apagado/suspensión. El empaquetado no reinstala el plugin activo.
 
+## Otras aplicaciones y límites
 
-## Revisión del contenido conservando los nombres originales
+Se conservan los contenidos de Ally Power (escritorio 1.0.0 y plugin nativo 1.1.2) y los
+otros individuales. Sus comprobaciones previas incluyeron 31 pruebas de escritorio y
+51 Python + 8 JavaScript de Ally Power Decky, sin escrituras reales TDP/SMT. Las instantáneas
+de topología se generan en el destino, nunca se empaqueta la del equipo constructor.
 
-- Suite: 27 pruebas; escritorio: 31; Decky: 51 Python y 8 JavaScript (117 en total).
-- TypeScript estricto y Rollup correctos. Ninguna prueba escribe TDP/SMT real.
-- Regresiones de topología: CPU offline sin sysfs, IDs debugfs puestos a cero,
-  instantáneas protegidas/no válidas, reinicio sin escritorio, selección GTK,
-  520 configuraciones CPU de escritorio y 240 configuraciones Decky simuladas.
-- El instalador de escritorio crea su instantánea en destino y conserva la app
-  anterior si falla esa captura; no empaqueta topología de la máquina constructora.
-- Conservados ZIP exteriores y nombres `.run`; el catálogo y ZIP nativo Decky
-  ahora llevan 1.1.2. La release continúa siendo v1.0.0, sin publicación nueva.
-- Los tres individuales ajenos a Ally Power se conservan byte a byte. Se comprueban
-  los seis ZIP y sus runners/manifests/requisitos antes de sustituir archivos.
-- Esto acredita código, construcción e integridad; no una prueba física de
-  interacción en Gaming ni una instalación nueva sobre otra Ally.
+La app Bluetooth fue probada manualmente por el usuario. La instalación completa en
+un sistema nuevo y otras Ally/Ally X requiere validación física. ALLY RGB solo se ofrece
+en RC71L; Ally X no está validada. Ninguna prueba aislada acredita compatibilidad universal
+con todas las versiones de SteamOS, Decky o Steam. El TDP nativo usa una API interna.
+
+No se resuelven dependencias modificando el sistema. Si faltan, se explica y el componente
+no está disponible. Las pruebas de empaquetado no cambian TDP, SMT, Bluetooth, RGB ni arranque.

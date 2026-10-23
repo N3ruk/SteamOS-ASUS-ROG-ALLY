@@ -1,0 +1,3 @@
+
+# Preserve upstream license text and its original CRLF/spacing byte-for-byte.
+components/ally-rgb/licenses/* -whitespace
