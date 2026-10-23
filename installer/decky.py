@@ -106,7 +106,7 @@ class Client:
         previous = next((p for p in plugins if p.get('name') == 'Ally Power'), None)
         if previous:
             state = await self.call('loader/call_plugin_method', 'Ally Power', 'get_state')
-            if not isinstance(state, dict) or state.get('version') not in ('1.0.0', '1.1.0'):
+            if not isinstance(state, dict) or state.get('version') not in ('1.0.0', '1.0.1', '1.1.0', '1.1.1', '1.1.2'):
                 raise RuntimeError('Ally Power existente no reconocido; no se sustituye.')
             if state.get('active'):
                 raise RuntimeError('El plugin controla el hardware. Sal de Gaming antes de actualizarlo.')

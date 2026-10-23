@@ -55,3 +55,7 @@ bash SteamOS-ASUS-ROG-ALLY-1.0.0-SteamOS.run --extract fuentes
 - [`components/`](components): fuentes originales de cada aplicación, instaladores y recursos.
 
 Código propio bajo MIT; **no** se aplica esa licencia a todo el contenido indiscriminadamente. RyzenAdj y recursos de terceros conservan sus licencias; los iconos PNG aportados por el usuario no se relicencian como MIT. Véase [THIRD-PARTY.md](THIRD-PARTY.md).
+
+Los nombres de descarga de la distribución 1.0.0 se conservan. El individual
+`Ally-Power-Decky-1.1.0.zip` contiene el plugin nativo 1.1.2; consulta el catálogo
+y SHA256SUMS del contenido, no deduzcas la versión interna del nombre exterior.

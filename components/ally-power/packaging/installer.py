@@ -120,6 +120,21 @@ def known_install(directory):
             or (directory / 'backend.py').is_file() and (directory / 'ryzenadj').is_file())
 
 
+def capture_cpu_topology(backend_path, previous):
+    """Read this machine only; never distribute a snapshot from the build host."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('ally_install_topology', backend_path)
+    backend = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(backend)
+    backend.TOPOLOGY_FILE = previous / 'cpu-topology.json'
+    try:
+        return backend.topology_snapshot()
+    except RuntimeError as exc:
+        raise RuntimeError('No se puede registrar la topología CPU sin modificar hardware. '
+                           'Si es una instalación nueva, activa SMT y todos los núcleos '
+                           'con tu gestor actual y vuelve a instalar. ' + str(exc)) from exc
+
+
 def install_system(package=PACKAGE, root=Path('/')):
     """root is injectable only for isolated unit tests; no CLI staging override."""
     manifest = verify_package(package)
@@ -152,6 +167,9 @@ def install_system(package=PACKAGE, root=Path('/')):
             shutil.copyfile(source, target)
             target.chmod(0o755 if target.name == 'ryzenadj' else 0o644)
         shutil.copyfile(stage / 'power_backend.py', stage / 'backend.py')
+        snapshot = capture_cpu_topology(stage / 'backend.py', destination)
+        (stage / 'cpu-topology.json').write_text(json.dumps(snapshot, indent=2) + '\n')
+        (stage / 'cpu-topology.json').chmod(0o644)
         (stage / 'PACKAGE-ID').write_text(MARKER + '\n')
         (stage / 'VERSION').write_text(VERSION + '\n')
         stage.chmod(0o755)

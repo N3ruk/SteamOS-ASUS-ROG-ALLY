@@ -61,7 +61,10 @@ def competitors(rows=None):
 
 def in_gaming(rows=None):
     rows = processes() if rows is None else rows
-    return any(comm == 'gamescope' for comm, _ in rows)
+    # Gamescope renames its main Wayland thread via pthread_setname_np.
+    # /proc/PID/comm therefore reports gamescope-wl on current SteamOS.
+    # Match exact compositor names, not helpers such as gamescope-session.
+    return any(comm in ('gamescope', 'gamescope-wl') for comm, _ in rows)
 
 
 def lock_busy(path=LOCK):
@@ -134,7 +137,7 @@ class Manager:
             fresh.update(competitors=competitors(rows), gaming=in_gaming(rows))
         owned = bool(self.proc and self.proc.returncode is None)
         fresh.update(active=owned, desktop_busy=not owned and await asyncio.to_thread(lock_busy),
-                     error=self.error, version='1.1.0')
+                     error=self.error, version='1.1.2')
         return fresh
 
     async def _read(self):

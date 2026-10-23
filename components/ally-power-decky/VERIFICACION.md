@@ -1,5 +1,35 @@
 # Verificación
 
+## Versión 1.1.2 — SMT y CPUs offline
+
+- Estado real antes de corregir: SMT off, CPUs online 0–7; el backend declaraba
+  incorrectamente max_cores=16. `cpu8..15/topology` ya no existía.
+- Eliminado el fallback que convertía cada CPU offline en núcleo físico nuevo.
+  Topología completa cacheada e instantánea local root-owned para reinicios offline.
+  El fallback de IDs x86 se rechaza si está incompleto/colapsado. Se prueba la
+  prioridad de la instantánea ante IDs offline a cero, sin necesitar escritorio.
+  Solo se guardan metadatos físicos, ninguna escritura de hardware para detectar.
+- 51 pruebas Python y 8 JavaScript. Se añaden hogares sysfs/debugfs temporales
+  que retiran los directorios de CPUs offline como el kernel real; arranque con
+  SMT apagado, núcleos completos offline, reinicio del controlador, rechazo de
+  datos incompletos y 240 configuraciones CPU en diez ciclos simulados.
+- TypeScript y Rollup correctos. Pruebas CPU/TDP solo simuladas; la repetición
+  física desde Gaming queda para la prueba del usuario.
+
+## Versión 1.1.1 — Gaming e interfaz reducida (2026-10-23)
+
+- Causa del bloqueo identificada: `in_gaming` solo aceptaba `gamescope`, pero los
+  registros de este host identifican el proceso principal como `gamescope-wl`.
+  La detección se comparte entre interfaz, adquisición, monitor y puerta de escritura.
+- Se aceptan ambos nombres exactos; no se aceptan los procesos auxiliares.
+- 37 pruebas Python y 8 JavaScript superadas, más TypeScript estricto y Rollup.
+  Regresiones: detección del compositor renombrado, monitor sin cesión errónea y
+  transacciones CPU/TDP permitidas con hardware simulado.
+- Interfaz reducida a un único recuadro de estado y Ajuste manual completo.
+  Los motivos de bloqueo y errores se muestran dentro del mismo recuadro.
+- No se ha cambiado de sesión ni escrito TDP/SMT para estas pruebas. La interacción
+  física en Gaming sigue pendiente; el equipo estaba en escritorio.
+
 ## Versión 1.1.0 — cambios en tiempo real
 
 - 35 pruebas Python y 8 pruebas JavaScript superadas (43 en total).

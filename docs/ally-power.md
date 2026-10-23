@@ -21,3 +21,16 @@ No lo uses a la vez que otro gestor de potencia/SMT. El cierre normal conserva l
 Desinstalador del menú o `bash Ally-Power-1.0.0-SteamOS-x86_64.run --uninstall`. Conserva copia recuperable. Algunas actualizaciones de SteamOS pueden sustituir `/usr/local`; guarda el instalador para reinstalar.
 
 Fuentes: [`components/ally-power`](../components/ally-power). Guías originales: [LEEME](../components/ally-power/LEEME.md), [REBUILD](../components/ally-power/REBUILD.md), [terceros](../components/ally-power/THIRD-PARTY.md). Código MIT, RyzenAdj LGPL/GPL según sus archivos y fuentes correspondientes; PNG aportado excluido de MIT.
+
+
+## Núcleos e hilos
+
+Esta revisión conserva el nombre `Ally-Power-Escritorio-1.0.0.zip` e incorpora
+la detección física corregida. El instalador genera la instantánea protegida
+`/usr/local/lib/desktop-power/cpu-topology.json` en el equipo destino, no en el
+constructor. Así la ventana sin privilegios conserva los límites correctos al
+apagar SMT o núcleos. Si una instalación nueva arranca con CPU offline que el
+kernel no identifica, detiene la instalación sin reemplazar lo existente e indica
+activar SMT/todos los núcleos con el gestor actual antes de volver a instalar.
+No cambia hardware para registrar esa información. Se mantiene Aplicar y el
+comportamiento existente al cerrar.

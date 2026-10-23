@@ -60,3 +60,27 @@ python3 publish.py --owner TU_USUARIO --visibility public
 ```
 
 Debe ejecutarse sobre un checkout limpio, revisado y con commit en `main`. Comprueba los seis paquetes, crea `SteamOS-ASUS-ROG-ALLY` si no existe, conserva un `origin` ajeno sin modificarlo, empuja sin force y crea `v1.0.0` con los seis ZIP y `SHA256SUMS`. No imprime tokens, no modifica la configuración global de git y no reemplaza una release existente. Descarga de nuevo los siete assets publicados y comprueba que sus hashes coincidan con los locales. Crear el repositorio exige permisos de GitHub adicionales a los de un conector que solo lee/escribe código en repositorios ya existentes.
+
+
+## Sustitución de paquetes conservando nombres
+
+Para renovar únicamente los tres paquetes Ally Power/centralizado conservando los
+otros tres ZIP existentes, reconstruye primero sus payloads fijados y hashes, y usa:
+
+```bash
+python3 build.py --only central ally-power ally-power-decky
+python3 verify_packages.py
+(cd release && sha256sum -c SHA256SUMS)
+```
+
+`--only` requiere los demás ZIP ya presentes para conservar la lista SHA256SUMS
+completa. El nombre exterior Decky sigue siendo `Ally-Power-Decky-1.1.0.zip`, pero
+el catálogo y el ZIP nativo del interior son 1.1.2. El `.run` de escritorio mantiene
+1.0.0 e incorpora el registro de topología CPU propio del equipo destino.
+
+Para una sustitución expresamente autorizada de assets de `v1.0.0`, no ejecutes
+`publish.py` (su política normal es rechazar una release existente). Tras revisar y
+empujar el commit a main, `gh release upload v1.0.0 --clobber` permite sustituir
+solo los tres ZIP revisados y SHA256SUMS. Conserva los restantes assets, tag,
+título, descripción y publicación original; no crees una release ni una discusión.
+Descarga de nuevo todos los assets y compara bytes y hashes antes de darla por terminada.

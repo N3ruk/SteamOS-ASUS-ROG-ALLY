@@ -4,6 +4,7 @@
 Uses only Python stdlib. Third-party binary inputs remain pinned by manifest.
 """
 import gzip
+import argparse
 import hashlib
 import io
 import json
@@ -103,6 +104,10 @@ def zip_add(archive, name, data, permissions=0o644):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--only', nargs='+', choices=list(NAMES),
+                        help='Reconstruir solo estas piezas y conservar los demás ZIP existentes.')
+    selected = parser.parse_args().only
     for line in (ROOT / 'payloads/SHA256SUMS').read_text().splitlines():
         expected, name = line.split('  ', 1)
         if Path(name).name != name or digest((ROOT / 'payloads' / name).read_bytes()) != expected:
@@ -111,6 +116,8 @@ def main():
     out.mkdir(exist_ok=True)
     products = []
     for component, folder in NAMES.items():
+        if selected and component not in selected:
+            continue
         central = component == 'central'
         ids = list(CATALOG) if central else [component]
         files = collect(ids, central)
@@ -136,6 +143,7 @@ def main():
             zip_add(archive, folder + '/THIRD-PARTY.md', (ROOT / 'THIRD-PARTY.md').read_bytes())
         products.append(path)
         print(path.name + ': ' + str(path.stat().st_size) + ' bytes')
+    products = [out / (folder + '.zip') for folder in NAMES.values()]
     (out / 'SHA256SUMS').write_text(''.join(digest(p.read_bytes()) + '  ' + p.name + '\n' for p in products))
 
 

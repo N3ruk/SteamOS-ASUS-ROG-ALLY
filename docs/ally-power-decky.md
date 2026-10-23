@@ -1,4 +1,4 @@
-# Ally Power — Decky Gaming 1.1.0
+# Ally Power — Decky Gaming 1.1.2
 
 Control de TDP, SMT, núcleos e hilos desde el panel de Decky en modo Gaming. Requiere hardware compatible con Ally Power y **Decky Loader instalado y activo**. No instala Loader, no lo activa y no modifica Steam al instalar.
 
@@ -23,3 +23,20 @@ Para desinstalar usa los ajustes de plugins de Decky. Para restaurar una copia a
 [`components/ally-power-decky`](../components/ally-power-decky), [README original](../components/ally-power-decky/README.md), [historial de verificación](../components/ally-power-decky/VERIFICACION.md). Código MIT propio y fuentes/licencias de RyzenAdj incluidas.
 
 TypeScript, compilación y pruebas simuladas verifican lógica y exclusión; no prueban interacción física en Gaming ni escrituras reales sobre otra Ally. Véase [verificación de la suite](VERIFICATION.md).
+
+
+## Contenido corregido con nombre de descarga conservado
+
+El archivo de distribución conserva `Ally-Power-Decky-1.1.0.zip` y su `.run`
+original; el ZIP nativo de su interior y el catálogo instalan el plugin **1.1.2**.
+Incluye el recuadro de estado y Ajuste manual, detección de `gamescope-wl` y
+validación estable de núcleos/hilos al alternar SMT.
+
+El plugin guarda solo metadatos físicos verificados en
+`/var/lib/ally-power-decky/cpu-topology.json`; no son ajustes de potencia y no se
+aplican al arrancar. Esto permite reiniciar el backend con SMT apagado sin depender
+de la app de escritorio. También puede usar una instantánea válida de escritorio.
+Se rechazan los IDs incompletos/puestos a cero de CPU offline, y nunca se asume que
+cada CPU apagada sea un núcleo nuevo. Si no hay ninguna identificación completa ni
+instantánea válida, se pide iniciar con todos los núcleos/SMT disponibles: no se
+activan CPU para inspeccionarlas ni se distribuye una topología de otro equipo.

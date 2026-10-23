@@ -23,7 +23,7 @@ CATALOG = {
         'description': 'Control manual de TDP, SMT, núcleos e hilos en escritorio. No necesita PowerTools. Requiere cerrar Ally Power si ya está abierto y autorización del sistema al instalar.',
         'requirements': 'Solo Ally/Ally X RC71L/RC72LA con Ryzen Z1/Z1 Extreme, SteamOS x86_64. Python GTK4 y pkexec.'},
     'ally-power-decky': {
-        'name': 'Ally Power — Decky Gaming', 'version': '1.1.0',
+        'name': 'Ally Power — Decky Gaming', 'version': '1.1.2',
         'description': 'Plugin para Gaming: cambios en tiempo real; TDP del plugin solo al activar «TDP de Steam desactivado». SMT independiente. No añade botones Aplicar, Liberar ni Restaurar.',
         'requirements': 'Mismo hardware que Ally Power; Decky instalado y activo, API local compatible y python3-aiohttp. No instala Decky.'},
     'bluetooth-trust-manager': {

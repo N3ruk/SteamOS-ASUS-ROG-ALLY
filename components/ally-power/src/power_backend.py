@@ -16,6 +16,61 @@ RYZENADJ = '/usr/local/lib/desktop-power/ryzenadj'
 ASUS_ATTRIBUTES = Path('/sys/class/firmware-attributes/asus-armoury/attributes')
 FALLBACK_LIMITS = None
 STATE_FILE = Path('/run/desktop-power/last-limits.json')
+CPU_DEBUG = Path('/sys/kernel/debug/x86/topo/cpus')
+TOPOLOGY_FILE = Path('/usr/local/lib/desktop-power/cpu-topology.json')
+TOPOLOGY_CACHE = None
+
+
+def cpu_identity():
+    """Public, stable hardware identifiers; no serial numbers or online count."""
+    fields = {}
+    for line in read('/proc/cpuinfo').splitlines():
+        if ':' in line:
+            key, value = (part.strip() for part in line.split(':', 1))
+            if key in ('vendor_id', 'cpu family', 'model', 'stepping', 'model name'):
+                fields.setdefault(key, value)
+    return {'cpu': fields, 'product': read('/sys/class/dmi/id/product_name')}
+
+
+def saved_cpu_ids(present):
+    """GUI may read a root-verified snapshot when offline debugfs needs root."""
+    try:
+        info = TOPOLOGY_FILE.lstat()
+        import stat
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022):
+            return {}
+        data = json.loads(TOPOLOGY_FILE.read_text())
+        if data['identity'] != cpu_identity() or data['present'] != sorted(present):
+            return {}
+        ids = data['ids']
+        if set(ids) != {str(cpu) for cpu in present}:
+            return {}
+        if not all(isinstance(pair, list) and len(pair) == 2
+                   and all(type(value) is int and value >= 0 for value in pair)
+                   for pair in ids.values()):
+            return {}
+        # Z1/Z1 Extreme have at most two hardware threads per physical core.
+        # Some kernels zero debugfs IDs for offline CPUs: that is NOT topology.
+        from collections import Counter
+        if max(Counter(tuple(pair) for pair in ids.values()).values(), default=0) > 2:
+            return {}
+        # Reject stale snapshots if any currently visible identity disagrees.
+        for cpu in present:
+            base = CPU / f'cpu{cpu}/topology'
+            package, core = read(base / 'physical_package_id'), read(base / 'core_id')
+            if package not in ('', '-1') and core not in ('', '-1'):
+                if [int(package), int(core)] != ids[str(cpu)]:
+                    return {}
+        return {int(cpu): tuple(pair) for cpu, pair in ids.items()}
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return {}
+
+
+def topology_snapshot():
+    """Generate on this machine as root at installation; no hardware writes."""
+    topology()  # Require complete, verified physical identities first.
+    return {'identity': cpu_identity(), 'present': sorted(TOPOLOGY_CACHE[2]),
+            'ids': {str(cpu): list(pair) for cpu, pair in TOPOLOGY_CACHE[2].items()}}
 
 
 def asus_limits():
@@ -76,18 +131,53 @@ def cpu_list(text):
 
 
 def topology():
+    """Keep physical cores stable when Linux removes offline topology entries."""
+    global TOPOLOGY_CACHE
+    present = cpu_list(read(CPU / 'present'))
+    identity = (str(CPU), tuple(sorted(present)))
+    if TOPOLOGY_CACHE and TOPOLOGY_CACHE[0] == identity:
+        return list(TOPOLOGY_CACHE[1])
     groups = {}
-    for cpu in cpu_list(read(CPU / 'present')):
+    ids = {}
+    saved = None
+    for cpu in sorted(present):
         base = CPU / f'cpu{cpu}/topology'
         package = read(base / 'physical_package_id')
         core = read(base / 'core_id')
         if package not in ('', '-1') and core not in ('', '-1'):
-            key = (package, core)
+            key = (int(package), int(core))
         else:
-            key = ('siblings', read(base / 'thread_siblings_list', str(cpu)))
+            if saved is None:
+                saved = saved_cpu_ids(present)
+            if cpu in saved:
+                ids[cpu] = saved[cpu]
+                groups.setdefault(saved[cpu], []).append(cpu)
+                continue
+            fields = dict(line.split(':', 1) for line in read(CPU_DEBUG / str(cpu)).splitlines()
+                          if ':' in line)
+            try:
+                key = (int(fields['pkg_id'].strip(), 0), int(fields['core_id'].strip(), 0))
+                if min(key) < 0:
+                    raise ValueError('invalid CPU identity')
+            except (KeyError, ValueError):
+                if saved is None:
+                    saved = saved_cpu_ids(present)
+                if cpu not in saved:
+                    raise RuntimeError('No se puede identificar la topología física de la CPU '
+                                       f'{cpu} apagada. Actualiza Ally Power para registrar '
+                                       'la topología del equipo; no se inventarán núcleos.') from None
+                key = saved[cpu]
+        ids[cpu] = key
         groups.setdefault(key, []).append(cpu)
-    return sorted((tuple(sorted(group)) for group in groups.values()),
-                  key=lambda group: (0 not in group, group[0]))
+    result = sorted((tuple(sorted(group)) for group in groups.values()),
+                    key=lambda group: (0 not in group, group[0]))
+    if not result or 0 not in result[0]:
+        raise RuntimeError('No se ha podido identificar la topología física de la CPU.')
+    if any(len(group) > 2 for group in result):
+        raise RuntimeError('La topología física contiene identificadores incompletos de CPU '
+                           'apagadas. Se necesita una instantánea verificada del equipo.')
+    TOPOLOGY_CACHE = (identity, tuple(result), ids)
+    return list(result)
 
 
 def power_source():

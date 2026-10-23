@@ -21,3 +21,20 @@ El instalador no resuelve dependencias modificando el sistema. Si faltan, el com
 ## Ajustes de distribución sin cambio funcional
 
 Se sustituyeron identificadores de dispositivo de los fixtures de pruebas Bluetooth por una dirección ficticia local. Se conservaron los textos de licencia npm en el plugin y se regeneraron ambos paquetes afectados. No cambió el código funcional de las aplicaciones originales.
+
+
+## Revisión del contenido conservando los nombres originales
+
+- Suite: 27 pruebas; escritorio: 31; Decky: 51 Python y 8 JavaScript (117 en total).
+- TypeScript estricto y Rollup correctos. Ninguna prueba escribe TDP/SMT real.
+- Regresiones de topología: CPU offline sin sysfs, IDs debugfs puestos a cero,
+  instantáneas protegidas/no válidas, reinicio sin escritorio, selección GTK,
+  520 configuraciones CPU de escritorio y 240 configuraciones Decky simuladas.
+- El instalador de escritorio crea su instantánea en destino y conserva la app
+  anterior si falla esa captura; no empaqueta topología de la máquina constructora.
+- Conservados ZIP exteriores y nombres `.run`; el catálogo y ZIP nativo Decky
+  ahora llevan 1.1.2. La release continúa siendo v1.0.0, sin publicación nueva.
+- Los tres individuales ajenos a Ally Power se conservan byte a byte. Se comprueban
+  los seis ZIP y sus runners/manifests/requisitos antes de sustituir archivos.
+- Esto acredita código, construcción e integridad; no una prueba física de
+  interacción en Gaming ni una instalación nueva sobre otra Ally.

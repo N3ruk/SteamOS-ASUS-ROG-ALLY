@@ -7,9 +7,36 @@ import subprocess
 import tempfile
 import zipfile
 from build import NAMES
-from installer.engine import CATALOG
+from installer.engine import CATALOG, PAYLOADS
 
 ROOT = Path(__file__).resolve().parent
+
+
+def verify_embedded_power(extracted, expected, temporary):
+    """Check the actual runnable payload, not just the adjacent source copies."""
+    if 'ally-power-decky' in expected:
+        component = extracted / 'components/ally-power-decky'
+        with zipfile.ZipFile(extracted / 'payloads' / PAYLOADS['ally-power-decky']) as archive:
+            package = json.loads(archive.read('ally-power-decky/package.json'))
+            if package['version'] != CATALOG['ally-power-decky']['version']:
+                raise RuntimeError('El ZIP nativo Decky no coincide con la versión del catálogo.')
+            for name in ('py_modules/power_backend.py', 'py_modules/manager.py', 'dist/index.js'):
+                if archive.read('ally-power-decky/' + name) != (component / name).read_bytes():
+                    raise RuntimeError('Payload Decky y fuentes divergen: ' + name)
+            if any(Path(name).name == 'cpu-topology.json' for name in archive.namelist()):
+                raise RuntimeError('No se debe distribuir la topología CPU de otro equipo.')
+    if 'ally-power' in expected:
+        destination = temporary / (extracted.name + '-desktop-payload')
+        subprocess.run(['/bin/bash', str(extracted / 'payloads' / PAYLOADS['ally-power']),
+                        '--extract', str(destination)], check=True, capture_output=True)
+        package = destination / 'Ally-Power-1.0.0'
+        for name in ('app.py', 'power_backend.py'):
+            if (package / 'payload' / name).read_bytes() != (extracted / 'components/ally-power/src' / name).read_bytes():
+                raise RuntimeError('Payload escritorio y fuentes divergen: ' + name)
+        if (package / 'installer.py').read_bytes() != (extracted / 'components/ally-power/packaging/installer.py').read_bytes():
+            raise RuntimeError('El instalador de escritorio incrustado no está actualizado.')
+        if list(package.rglob('cpu-topology.json')):
+            raise RuntimeError('La topología CPU debe generarse al instalar, nunca empaquetarse.')
 
 
 def main():
@@ -38,6 +65,7 @@ def main():
             expected = list(CATALOG) if component == 'central' else [component]
             if manifest['components'] != expected:
                 raise RuntimeError('Componentes incorrectos: ' + name)
+            verify_embedded_power(extracted, expected, temporary)
             for i in expected:
                 if not (extracted / 'components' / i).is_dir() or not (extracted / 'docs' / (i + '.md')).is_file():
                     raise RuntimeError('Faltan fuentes/documentación: ' + i)

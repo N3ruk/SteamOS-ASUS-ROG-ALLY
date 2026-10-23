@@ -1,7 +1,24 @@
-# Ally Power para Decky — 1.1.0
+# Ally Power para Decky — 1.1.2
 
 Control manual de TDP, SMT, núcleos e hilos para SteamOS en ROG Ally RC71L o
 Ally X RC72LA con Ryzen Z1/Z1 Extreme. No es un gestor para Steam Deck ni para Z2.
+
+## Cambios 1.1.2
+
+- Topología física estable al alternar SMT o apagar núcleos/hilos. Linux retira
+  `cpuN/topology` de CPUs offline: no se deben contar como núcleos independientes.
+- Se conserva la topología completa validada durante la vida del proceso. Para
+  arrancar con SMT ya apagado se consultan una instantánea root verificada del propio plugin o escritorio. El fallback
+  debugfs solo se admite si los IDs son completos; este kernel puede ponerlos a cero.
+- Si el kernel no permite identificar una CPU offline se rechaza esa detección;
+  no se inventan núcleos ni se activa SMT para inspeccionarlos.
+
+## Cambios 1.1.1
+
+- Interfaz con un único recuadro de estado y el apartado completo Ajuste manual.
+- Corregida la detección de Gaming: reconoce `gamescope-wl`, el nombre real del
+  compositor en este SteamOS; antes todos los controles quedaban deshabilitados.
+- Los errores se muestran dentro del recuadro de estado, sin paneles adicionales.
 
 ## Qué permite
 
@@ -14,7 +31,7 @@ Ally X RC72LA con Ryzen Z1/Z1 Extreme. No es un gestor para Steam Deck ni para Z
 ## Instalar
 
 Necesitas Decky Loader. En sus ajustes activa el modo desarrollador y utiliza
-**Instalar plugin desde ZIP** para seleccionar `Ally-Power-Decky-1.1.0.zip`.
+**Instalar plugin desde ZIP** para seleccionar `Ally-Power-Decky-1.1.2.zip`.
 No necesita OpenClaw, PowerTools, un servicio nuevo ni acceso a Internet al funcionar.
 Desinstala desde los ajustes de Decky. El ZIP y las fuentes están disponibles por
 separado. El plugin solicita la bandera root de Decky para modificar CPU y TDP.
@@ -98,3 +115,7 @@ Usa `@decky/api`, `@decky/ui` y el empaquetador oficial `@decky/rollup`.
 Ver `VERIFICACION.md` para las comprobaciones realizadas. Fuentes y licencias de
 RyzenAdj están en `licenses/`. El motor deriva de Ally Power (MIT); la copia del
 motor incluye el protocolo adicional de cesión sin escritura `yield`.
+
+Los metadatos físicos validados se conservan en `/var/lib/ally-power-decky/cpu-topology.json`,
+sin ajustes TDP/SMT. Se generan en cada equipo solo desde sysfs completo. Si faltan
+identidades fiables e instantánea válida, se rechaza el control en lugar de adivinar núcleos.

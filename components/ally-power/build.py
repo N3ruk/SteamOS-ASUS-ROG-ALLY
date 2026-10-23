@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 """Build offline .run and source-bearing tarball from explicitly allowed files."""
 import hashlib
+import gzip
+import io
 import json
 import os
 from pathlib import Path
@@ -13,6 +15,7 @@ VERSION = '1.0.0'
 NAME = 'Ally-Power-' + VERSION
 VENDOR_HASH = 'd04547f111c6af3e40d3f210468adb884561618ddade0b640d90e50c88d03444'
 SOURCE_HASH = 'd1998b6c2d1b564f5d43c786cbf764ca9a1d8bb213e2001f98f611ead3087c7e'
+EPOCH = 1792627200
 
 
 def digest(path):
@@ -53,8 +56,17 @@ def main():
         stage = Path(temporary) / NAME
         populate(stage)
         tar_path = output / (NAME + '-SteamOS-x86_64.tar.gz')
-        with tarfile.open(tar_path, 'w:gz') as archive:
-            archive.add(stage, arcname=NAME)
+        with tar_path.open('wb') as stream:
+            with gzip.GzipFile(filename='', fileobj=stream, mode='wb', mtime=EPOCH) as compressed:
+                with tarfile.open(fileobj=compressed, mode='w') as archive:
+                    for path in sorted(stage.rglob('*')):
+                        if not path.is_file():
+                            continue
+                        info = tarfile.TarInfo(NAME + '/' + path.relative_to(stage).as_posix())
+                        data = path.read_bytes()
+                        info.size, info.mtime = len(data), EPOCH
+                        info.mode = 0o755 if path.name == 'ryzenadj' or path.suffix == '.sh' else 0o644
+                        archive.addfile(info, io.BytesIO(data))
         template = (ROOT / 'packaging/self-extract.sh').read_text()
         header = template.replace('@PAYLOAD_LINE@', str(template.count('\n') + 1))
         header = header.replace('@PAYLOAD_SHA256@', digest(tar_path))

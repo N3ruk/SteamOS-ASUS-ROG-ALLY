@@ -6,6 +6,14 @@ import app
 
 
 class InterfaceTests(unittest.TestCase):
+    def setUp(self):
+        # Existing UI tests must not depend on the real CPU's current SMT state.
+        state = dict(smt=True, smt_control='on', cores=8, threads=16,
+                     max_cores=8, max_threads=16, online=list(range(16)))
+        item = patch.object(app, 'cpu_state', return_value=state)
+        item.start()
+        self.addCleanup(item.stop)
+
     def test_separate_launcher_and_tray_icons(self):
         self.assertEqual(app.Path(app.launcher_icon()).name, 'icon-gaming.png')
         self.assertEqual(app.TRAY_ICON, app.BASE / 'icon.svg')

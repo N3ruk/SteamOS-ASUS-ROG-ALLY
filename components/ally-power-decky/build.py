@@ -21,7 +21,12 @@ def build():
     target = out / f'Ally-Power-Decky-{version}.zip'
     with zipfile.ZipFile(target, 'w', zipfile.ZIP_DEFLATED) as archive:
         for p in files:
-            archive.write(p, 'ally-power-decky/' + p.relative_to(ROOT).as_posix())
+            name = 'ally-power-decky/' + p.relative_to(ROOT).as_posix()
+            info = zipfile.ZipInfo(name, date_time=(2026, 10, 22, 0, 0, 0))
+            info.create_system = 3
+            info.external_attr = (0o100755 if p.parent.name == 'bin' else 0o100644) << 16
+            info.compress_type = zipfile.ZIP_DEFLATED
+            archive.writestr(info, p.read_bytes())
     digest = hashlib.sha256(target.read_bytes()).hexdigest()
     (out / 'SHA256SUMS').write_text(f'{digest}  {target.name}\n')
     print(f'{target} ({target.stat().st_size:,} bytes)')

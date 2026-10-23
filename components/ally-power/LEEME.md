@@ -1,5 +1,34 @@
 # Ally Power 1.0.0 — instalador para SteamOS
 
+## Corrección local de núcleos/SMT — 2026-10-23
+
+Linux puede retirar `cpuN/topology` al dejar un hilo o núcleo offline. El código
+anterior trataba cada CPU sin ese directorio como otro núcleo físico: al apagar
+SMT, la misma APU podía pasar a anunciar 16 núcleos en lugar de 8, y rechazar
+8 núcleos/16 hilos al volver a activarlo.
+
+La detección conserva los identificadores físicos completos y, si faltan datos
+sysfs, consulta en modo de solo lectura `/sys/kernel/debug/x86/topo/cpus/` cuando los
+identificadores son completos. La instantánea verificada tiene prioridad: este
+kernel puede poner a cero los IDs de CPU offline. Se rechazan agrupaciones
+imposibles (más de dos hilos por núcleo en Ryzen Z1/Z1 Extreme).
+La ventana sin privilegios usa una instantánea del equipo verificada por root,
+`/usr/local/lib/desktop-power/cpu-topology.json`, creada durante la actualización.
+Se comprueba propietario, permisos, identidad de la APU/producto, CPU presentes y
+concordancia con los identificadores todavía visibles. No se activan hilos ni se
+cambia SMT para averiguar la topología. No se inventan núcleos ante datos ausentes.
+
+La instantánea es local a la máquina y nunca se incluye en el paquete genérico.
+El instalador la genera en el equipo de destino sin modificar CPU/TDP. Si es una
+instalación nueva con SMT o núcleos apagados y el kernel no identifica las CPU
+inactivas, la instalación se detiene antes de reemplazar la app: activa SMT y
+todos los núcleos con tu gestor actual y vuelve a instalar. Una actualización
+puede reutilizar una instantánea anterior solo si supera todas las validaciones.
+
+La interfaz, Aplicar, restauración explícita, conservación al cerrar, iconos y
+límites TDP permanecen como estaban. Para volver atrás hay copias separadas de
+fuentes, archivos del usuario y backend del sistema.
+
 Control de TDP, SMT, núcleos e hilos en el **modo escritorio** de ROG Ally.
 Paquete offline, sin Decky ni PowerTools. No es software oficial de ASUS o Valve.
 

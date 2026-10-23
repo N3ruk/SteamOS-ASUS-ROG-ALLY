@@ -113,25 +113,25 @@ function Content() {
   if (!state) return <PanelSection title="Ally Power"><Note>{error || "Leyendo el estado de tu Ally…"}</Note></PanelSection>;
   const blocked = !state.host.supported || !state.gaming || state.desktop_busy || state.competitors.length > 0;
   const maxThreads = config.smt ? Math.min(state.cpu.max_threads, config.cores * 2) : config.cores;
-  const title = state.active ? "Control activo" : blocked ? "Control no disponible" : "Control en tiempo real";
+  const status = error || state.error || state.warning ||
+    (!state.host.supported ? state.host.reason :
+      !state.gaming ? "Disponible en modo Gaming." :
+      state.desktop_busy ? "Cierra Ally Power de escritorio conservando los ajustes." :
+      state.competitors.length ? `Desactiva el gestor: ${state.competitors.join(", ")}.` : "");
   return <>
-    <PanelSection title={title}>
+    <PanelSection>
       <Note><strong>{state.power.ac ? "Con cargador" : "Batería"}</strong>
         {state.power.battery !== null ? ` · ${state.power.battery}%` : ""}
         {state.temperature !== null ? ` · ${state.temperature} °C` : ""}<br />
         TDP configurado: <strong>{state.limits.stapm || "—"} W</strong><br />
-        CPU: {state.cpu.cores} núcleos · {state.cpu.threads} hilos · SMT {state.cpu.smt ? "activado" : "desactivado"}</Note>
-      {!state.host.supported && <Note warning>{state.host.reason}</Note>}
-      {!state.gaming && <Note>Modo escritorio: utiliza Ally Power de escritorio. El plugin no cambia ajustes aquí.</Note>}
-      {state.desktop_busy && <Note warning>Ally Power de escritorio tiene el control. Ciérralo con «Cerrar y conservar».</Note>}
-      {state.competitors.length > 0 && <Note warning>Gestor activo: <strong>{state.competitors.join(", ")}</strong>.<br />
-        Desactívalo en sus ajustes antes de usar estos controles. Ocultarlo no lo detiene.</Note>}
-      {(error || state.error || state.warning) && <Note warning>{error || state.error || state.warning}</Note>}
+        CPU: {state.cpu.cores} núcleos · {state.cpu.threads} hilos · SMT {state.cpu.smt ? "activado" : "desactivado"}
+        {status && <div role="status" style={{ color: "#ffcf8a", marginTop: 6 }}>{status}</div>}</Note>
     </PanelSection>
     <PanelSection title="Ajuste manual">
       <PanelSectionRow><ToggleField label="TDP de Steam desactivado" checked={steamOff}
         disabled={blocked || !nativeTdpAvailable()}
-        description={steamOff ? "TDP controlado por el plugin. Al apagarlo vuelve a Steam." : "TDP nativo de Steam. SMT, núcleos e hilos siguen disponibles."}
+        description={!nativeTdpAvailable() ? "API TDP de Steam no disponible. CPU y SMT siguen disponibles." :
+          steamOff ? "TDP controlado por el plugin. Al apagarlo vuelve a Steam." : "TDP nativo de Steam. SMT, núcleos e hilos siguen disponibles."}
         onChange={editMode} /></PanelSectionRow>
       <PanelSectionRow><SliderField label="TDP" value={config.watts} min={3} max={state.power.max_watts}
         step={1} showValue valueSuffix=" W" disabled={blocked || !steamOff} onChange={editTDP} /></PanelSectionRow>
@@ -145,12 +145,6 @@ function Content() {
       <PanelSectionRow><SliderField label="Hilos activos" value={config.threads} min={config.cores} max={Math.max(config.cores + 1, maxThreads)}
         step={1} showValue disabled={blocked || maxThreads === config.cores}
         onChange={value => editCPU({ threads: Math.min(maxThreads, Math.round(value)) })} /></PanelSectionRow>
-    </PanelSection>
-    <PanelSection title="Ajustes automáticos al mover los controles">
-      <Note>Sin botones de aplicar o liberar.<br />3–25 W en batería · 3–30 W con cargador.
-        Al salir de Gaming se conserva el estado y se cede el control.</Note>
-      {!nativeTdpAvailable() && <Note warning>No se ha detectado la API TDP de esta versión de Steam. Los controles de CPU no dependen de ella.</Note>}
-      <Note>{state.tdp_note}</Note>
     </PanelSection>
   </>;
 }

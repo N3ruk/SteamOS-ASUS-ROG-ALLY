@@ -31,6 +31,9 @@ class DiscoveryTests(unittest.TestCase):
     def test_desktop_and_gamescope_modes(self):
         self.assertFalse(m.in_gaming([('kwin_wayland', 'kwin_wayland')]))
         self.assertTrue(m.in_gaming([('gamescope', '/usr/bin/gamescope')]))
+        self.assertTrue(m.in_gaming([('gamescope-wl', '/usr/bin/gamescope -e')]))
+        for helper in ('gamescope-sess', 'gamescope-xwm', 'gamescopereaper', 'gamescopectl'):
+            self.assertFalse(m.in_gaming([(helper, helper)]))
 
     def test_host_gate_rejects_other_hardware_and_other_distros(self):
         def read(path):
@@ -161,6 +164,19 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
         await manager.close()
         manager._stop.assert_awaited_once_with('yield')
 
+    async def test_renamed_compositor_keeps_worker_alive(self):
+        manager = m.Manager()
+        manager.proc = Mock(returncode=None)
+        manager._send = AsyncMock()
+        manager._stop = AsyncMock()
+        with patch.object(m, 'processes', return_value=[('gamescope-wl', '/usr/bin/gamescope -e')]), \
+             patch.object(m.asyncio, 'sleep', new_callable=AsyncMock,
+                          side_effect=[None, asyncio.CancelledError()]):
+            with self.assertRaises(asyncio.CancelledError):
+                await manager.monitor()
+        manager._send.assert_awaited_once_with({'action': 'ping'})
+        manager._stop.assert_not_called()
+
     async def test_worker_eof_fails_pending_request_not_hang(self):
         manager = m.Manager()
         manager.proc = Mock()
@@ -189,6 +205,16 @@ class IndependentControls(unittest.TestCase):
         ]
         for p in self.patches: p.start(); self.addCleanup(p.stop)
         self.ctl = live.LiveController()
+
+    def test_renamed_gaming_compositor_allows_cpu_and_tdp_transactions(self):
+        # Exercise the real Gaming detector at the write gate, not a constant True.
+        with patch.object(live, 'in_gaming', wraps=m.in_gaming), \
+             patch.object(m, 'processes', return_value=[('gamescope-wl', '/usr/bin/gamescope -e')]):
+            self.ctl.apply_cpu(dict(smt=False, cores=4, threads=4))
+            self.ctl.set_tdp_mode(True)
+            self.ctl.apply_tdp(20)
+        hw.write_cpus.assert_called_once_with(False, set(range(4)))
+        hw.write_limits.assert_called_once_with(dict(stapm=20, fast=20, slow=20))
 
     def test_cpu_only_start_and_smt_change_never_probe_or_write_tdp(self):
         hw.limits.assert_not_called()

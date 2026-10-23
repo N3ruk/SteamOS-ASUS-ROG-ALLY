@@ -16,6 +16,31 @@ class PackageTests(unittest.TestCase):
         build.populate(self.package)
         self.root = self.base / 'fake-system'
         self.root.mkdir()
+        self.topology = {'identity': {'cpu': {}, 'product': 'test'},
+                         'present': list(range(16)),
+                         'ids': {str(cpu): [0, cpu % 8] for cpu in range(16)}}
+        item = patch.object(installer, 'capture_cpu_topology', return_value=self.topology)
+        self.capture = item.start()
+        self.addCleanup(item.stop)
+
+    def test_install_creates_local_topology_not_packaged_machine_data(self):
+        self.assertFalse((self.package / 'payload/cpu-topology.json').exists())
+        installer.install_system(self.package, self.root)
+        directory = self.root / installer.LIB.relative_to('/')
+        self.assertEqual(json.loads((directory / 'cpu-topology.json').read_text()), self.topology)
+        self.assertEqual((directory / 'cpu-topology.json').stat().st_mode & 0o777, 0o644)
+        self.capture.assert_called_once()
+
+    def test_topology_failure_preserves_existing_installation(self):
+        installer.install_system(self.package, self.root)
+        directory = self.root / installer.LIB.relative_to('/')
+        previous = (directory / 'cpu-topology.json').read_bytes()
+        (directory / 'note.txt').write_text('preserve')
+        self.capture.side_effect = RuntimeError('topología física no disponible')
+        with self.assertRaisesRegex(RuntimeError, 'topología'):
+            installer.install_system(self.package, self.root)
+        self.assertEqual((directory / 'cpu-topology.json').read_bytes(), previous)
+        self.assertEqual((directory / 'note.txt').read_text(), 'preserve')
 
     def test_compatible_and_unsupported_models(self):
         for model in ('ROG Ally RC71L_RC71L', 'ROG Ally X RC72LA_RC72LA'):
