@@ -14,6 +14,21 @@ PAYLOAD=ROOT/'payloads/ALLY-RGB-1.0.0.zip'
 
 
 class RGBPreflightTests(unittest.TestCase):
+    def test_clamped_kernel_requires_strict_readonly_hid_discovery(self):
+        def new_kernel(path):
+            return '255 255 255 255' if Path(path).name == 'multi_max_intensity' else self.read(path)
+        with patch.object(engine.platform,'machine',return_value='x86_64'), patch.object(engine,'read',side_effect=new_kernel):
+            for ready in (True, False):
+                with patch.object(engine,'rgb_hid_ready',return_value=ready), patch.object(engine.subprocess,'run') as run:
+                    self.assertEqual(engine.rgb_errors() == [], ready)
+                    run.assert_not_called()
+
+    def test_unknown_kernel_limits_are_rejected(self):
+        for value in ('255 255 255','oops','1024 1024 1024 1024'):
+            def changed(path): return value if Path(path).name == 'multi_max_intensity' else self.read(path)
+            with patch.object(engine.platform,'machine',return_value='x86_64'), patch.object(engine,'read',side_effect=changed):
+                self.assertTrue(engine.rgb_errors())
+
     def read(self,path):
         values={'/sys/class/dmi/id/product_name':'ROG Ally RC71L_RC71L',
                 'multi_index':'rgb rgb rgb rgb','multi_intensity':'0 0 0 0',

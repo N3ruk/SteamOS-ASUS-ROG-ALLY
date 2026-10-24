@@ -81,15 +81,23 @@ Para desinstalar usa Decky → Plugins → ALLY RGB → Desinstalar. No añade d
 ## Interfaz del kernel y fuentes
 
 Requiere `/sys/class/leds/ally:rgb:joystick_rings`, cuatro entradas `rgb` en `multi_index`
-y `max_brightness=255`. Escribe únicamente `multi_intensity` (cuatro valores RRGGBB) y
-`brightness`; no abre HID crudo. Runtime Python stdlib, sin `termios`, pyserial ni controladores de otras marcas.
+y `max_brightness=255`. En kernels compatibles escribe `multi_intensity` (cuatro valores
+RRGGBB) y `brightness`. Cuando el kernel recorta esos valores a 255 utiliza un fallback
+hidraw limitado a color y brillo RGB: USB ASUS 0b05:1abe, interfaz 02 del mismo dispositivo,
+descriptor e identidad comprobados. No modifica kernel, firmware, botones ni potencia.
+La comprobación del instalador descubre esa interfaz sin enviar órdenes. Runtime Python
+stdlib, sin `termios`, pyserial ni bibliotecas HID externas.
+
+En HID el estado informa aceptación del transporte, no lectura física del color; conserva
+el último frame enviado y detecta cambios del estado sysfs/dispositivo, además de gestores
+conocidos. No garantiza detectar escritores HID desconocidos. No reinstala controladores.
 
 - [Código y guía del plugin](../components/ally-rgb/README.md).
 - [Pruebas del plugin](../components/ally-rgb/VERIFICACION.md).
 - [Verificación y límites de la suite](VERIFICATION.md).
 - [Licencias y referencias](../components/ally-rgb/THIRD-PARTY.md).
 
-69 pruebas automatizadas (56 Python y 13 JavaScript), compilación TypeScript/Rollup y carga
+87 pruebas automatizadas (74 Python y 13 JavaScript), compilación TypeScript/Rollup y carga
 real del backend/frontend comprobadas. Se observó por readback que los efectos ya activos continúan
 al seleccionar otra zona. No equivale a verificar visualmente los colores, un ciclo físico de
 suspensión/encendido o una instalación nueva en cualquier modelo de Ally.

@@ -60,15 +60,30 @@ la opción está activada; no se instala ningún servicio de arranque adicional.
 - Interfaz del kernel: `/sys/class/leds/ally:rgb:joystick_rings`.
 - Requiere `multi_index` de cuatro entradas `rgb` y `max_brightness=255`.
 - `multi_intensity`: **cuatro colores empaquetados RRGGBB**, no tres componentes R/G/B.
-- El control de color escribe únicamente `multi_intensity` y `brightness`.
+- En kernels compatibles, el control de color escribe `multi_intensity` y `brightness`.
+- Si `multi_max_intensity` limita los cuatro valores empaquetados a 255 (como Linux 7.2
+  en SteamOS 3.9), usa automáticamente un transporte hidraw **exclusivamente RGB**.
+  Identifica RC71L, USB ASUS 0b05:1abe, interfaz 02 y el mismo dispositivo del LED;
+  verifica descriptor, identidad del descriptor abierto y nodo de carácter. No usa números hidraw fijos.
+- El fallback solo permite informes fijos de cuatro colores y brillo LED. No toca TDP,
+  ventiladores, botones, modos del mando, firmware ni persistencia del controlador.
+  No descarga el driver ni instala módulos, dependencias o reglas de permisos.
+- El dimmer HID escala los canales RGB por software, usando el nivel LED máximo cuando
+  está encendido. Se conservan cuatro zonas/efectos y el brillo global continuo.
+- HID confirma que el transporte aceptó el comando, **no una lectura física del color**.
+  El estado lo distingue mediante `backend` y `verification`; los colores son el último
+  frame enviado. Los cambios del dispositivo/estado sysfs provocan cesión y se comprueban
+  gestores conocidos, pero no se garantiza detectar otro escritor HID desconocido.
+  Ante un envío fallido se cierra el descriptor sin fingir rollback ni confirmación.
 - Bloqueo `/run/ally-rgb.lock`; última configuración en `settings.json` del directorio de ajustes de Decky.
 - Escritura atómica y fsync de ajustes; los perfiles antiguos no se borran ni se aplican.
 - Comprobación de valores, readback del driver y rollback parcial mientras sea el mismo dispositivo.
 - Detección de cambios externos, ausencia del dispositivo y cierre sin reimposición continua.
 - El readback del driver no prueba el color físico de los LED ni garantiza persistencia tras reiniciar.
 
-El runtime usa únicamente biblioteca estándar compatible con Decky. No importa
-`termios`, `serial`, `hid` o controladores de otras marcas. No accede a red.
+El runtime usa únicamente biblioteca estándar compatible con Decky, incluido `fcntl`
+para el fallback RGB. No importa `termios`, `serial`, bibliotecas HID externas ni
+controladores de otras marcas. No accede a red.
 Sin sincronización de pantalla/audio en esta primera versión.
 
 ## Construir y verificar

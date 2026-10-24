@@ -2,9 +2,9 @@
 
 ## Suite 1.0.0
 
-- 42 pruebas de selección, catálogo, integridad, instaladores y adaptadores Decky.
-- ALLY RGB: 56 pruebas Python y 13 JavaScript; TypeScript estricto y Rollup correctos.
-- 111 pruebas automatizadas de la suite y ALLY RGB en esta verificación. Los números
+- 44 pruebas de selección, catálogo, integridad, instaladores y adaptadores Decky.
+- ALLY RGB: 74 pruebas Python y 13 JavaScript; TypeScript estricto y Rollup correctos.
+- 131 pruebas automatizadas de la suite y ALLY RGB en esta verificación. Los números
   se refieren a casos de prueba, no a equipos físicos.
 
 La interfaz gráfica se prueba con todas las casillas desmarcadas. No ofrece Ally Power
@@ -49,6 +49,13 @@ El lector de batería se prueba con mando conectado/desconectado, periférico de
 primero con porcentaje distinto, BAT0 sin scope, marcado Device, batería ausente y datos
 inválidos/inaccesibles. Tanto el porcentaje como el efecto usan la batería interna.
 Una lectura desconocida no toma la de otro dispositivo y se muestra sin datos.
+
+En kernels que recortan colores empaquetados, el fallback hidraw es exclusivamente
+RGB y conserva los cuatro efectos. Las pruebas comprueban identidad USB, interfaz,
+descriptor, nodo abierto, cierre ante desaparición, lista positiva de dos comandos,
+rechazo de paquetes ajenos, dimmer y ausencia de escrituras al consultar el estado.
+El instalador descubre ese dispositivo sin abrir ni escribir hidraw. El éxito de HID
+significa aceptación por transporte; no equivale a readback físico de los colores.
 
 ## Otras aplicaciones y límites
 

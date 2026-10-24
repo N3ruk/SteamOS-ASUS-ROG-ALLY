@@ -12,5 +12,13 @@
   Referencia de investigación y capacidades. No se incluye código de su backend,
   ni sus submódulos pyserial/HID ni dependencias para otras marcas.
 - ABI LED del kernel: https://docs.kernel.org/leds/leds-class-multicolor.html
+- Transporte hidraw de Linux: https://www.kernel.org/doc/html/latest/hid/hidraw.html
+  Implementación propia con biblioteca estándar, sin libhid/pyserial.
+- Formato de informes RGB del driver hid-asus-ally, Luke D. Jones:
+  https://github.com/uejji/hid-asus-ally/blob/master/hid-asus-ally.c
+  y su cabecera. Se consultaron los comandos LED de color `5a d1 08 0c` y
+  brillo `5a ba c5 c4`; no se incorpora el código C del controlador ni sus
+  comandos de mando/calibración/firmware. El repositorio es una referencia
+  histórica de protocolo, no un módulo que se instale ni una dependencia.
 
 El nombre ASUS/ROG identifica compatibilidad; este plugin no es software oficial de ASUS o Valve.

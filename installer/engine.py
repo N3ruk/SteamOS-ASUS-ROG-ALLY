@@ -66,6 +66,20 @@ def ally_errors():
 
 
 
+def rgb_hid_ready(base):
+    """Read-only discovery using the same strict selector shipped in the plugin."""
+    import importlib.util
+    module = Path(__file__).resolve().parent.parent / 'components/ally-rgb/py_modules/rgb_hid.py'
+    try:
+        spec = importlib.util.spec_from_file_location('ally_rgb_hid_preflight', module)
+        backend = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(backend)
+        backend.locate((base / 'device').resolve(strict=True))
+        return True
+    except (OSError, ValueError, ImportError):
+        return False
+
+
 def rgb_errors():
     product = read('/sys/class/dmi/id/product_name')
     if platform.machine() != 'x86_64' or 'ROG Ally' not in product or 'RC71L' not in product:
@@ -79,7 +93,18 @@ def rgb_errors():
                  0 <= int(read(base / 'brightness')) <= 255)
     except ValueError:
         valid = False
-    return [] if valid else ['El kernel no expone la interfaz RGB de cuatro zonas que necesita ALLY RGB.']
+    if not valid:
+        return ['El kernel no expone la interfaz RGB de cuatro zonas que necesita ALLY RGB.']
+    try:
+        text = read(base / 'multi_max_intensity').strip()
+        limits = [int(v) for v in text.split()] if text else [0xffffff]*4
+    except ValueError:
+        return ['Los límites RGB del kernel no son válidos.']
+    if limits == [255]*4:
+        return [] if rgb_hid_ready(base) else ['El kernel recorta colores; no se encuentra la interfaz HID RGB compatible de esta Ally.']
+    if len(limits) == 4 and all(v >= 0xffffff for v in limits):
+        return []
+    return ['El kernel anuncia límites RGB no compatibles.']
 
 
 def available(root):

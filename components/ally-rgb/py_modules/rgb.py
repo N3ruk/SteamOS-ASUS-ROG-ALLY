@@ -1,4 +1,4 @@
-"""Ally-only RGB sysfs backend. No serial, termios, HID, EC or power controls."""
+"""Ally-only RGB: sysfs and strictly RGB-only hidraw compatibility transport."""
 import asyncio
 import colorsys
 import contextlib
@@ -195,9 +195,21 @@ def writers():
 
 
 class Hardware:
-    def __init__(self, path=LED, product_path=Path('/sys/class/dmi/id/product_name')):
+    def __init__(self, path=LED, product_path=Path('/sys/class/dmi/id/product_name'), transport=None):
         self.path = path
         self.product_path = product_path
+        self.transport = transport
+        self.hid_last = None
+        self.hid_observed = None
+
+    def close(self):
+        if self.transport is not None:
+            self.transport.close()
+        self.hid_last = self.hid_observed = None
+
+    @staticmethod
+    def observation(state):
+        return state['device'], tuple(state['colors']), state['brightness'], state['trigger']
 
     def state(self):
         product = read(self.product_path)
@@ -218,8 +230,32 @@ class Hardware:
             value = read(self.path / 'sleep_animation')
             if set(choices) == {'0', '1'} and value in choices:
                 sleep = value == '1'
-        return dict(product=product, colors=colors, brightness=brightness, sleep=sleep,
+        result = dict(product=product, colors=colors, brightness=brightness, sleep=sleep,
                     trigger=active.group(1) if active else 'unknown', device=str(self.path.resolve()))
+        limits_path = self.path / 'multi_max_intensity'
+        limits = [int(v) for v in read(limits_path).split()] if limits_path.exists() else [0xffffff]*4
+        if limits == [255]*4:
+            from .rgb_hid import RGBTransport
+            if self.transport is None:
+                self.transport = RGBTransport()
+            try:
+                self.transport.locator((self.path/'device').resolve(strict=True))
+            except (OSError, ValueError) as exc:
+                raise RGBError('Este kernel recorta colores y no se puede usar RGB directo: ' + str(exc)) from exc
+            result.update(backend='hid-rgb', verification='transport-accepted', kernel_observed=self.observation(result))
+            if self.hid_last is not None:
+                if self.observation(result) != self.hid_observed:
+                    raise RGBError('Cambió el dispositivo o su estado sysfs; ALLY RGB ha cedido el control.')
+                result.update(colors=list(self.hid_last[0]), brightness=self.hid_last[1])
+            else:
+                result['verification'] = 'kernel-cache-only'
+        elif len(limits) == 4 and all(v >= 0xffffff for v in limits):
+            result.update(backend='sysfs', verification='kernel-readback')
+            if self.hid_last is not None:
+                raise RGBError('Cambió la interfaz del controlador RGB; vuelve a adquirir el control.')
+        else:
+            raise RGBError('El kernel anuncia límites RGB no compatibles.')
+        return result
 
     def write(self, colors, brightness):
         if (not isinstance(colors, list) or len(colors) != 4
@@ -229,6 +265,17 @@ class Hardware:
         before = self.state()
         if before['trigger'] != 'none':
             raise RGBError('Otro disparador del kernel controla las luces: ' + before['trigger'])
+        if before['backend'] == 'hid-rgb':
+            try:
+                self.transport.write((self.path/'device').resolve(strict=True), colors, brightness)
+                self.hid_observed = before['kernel_observed']
+                self.hid_last = (list(colors), brightness)
+                return self.state()
+            except Exception:
+                # HID has no physical color readback. Do not invent rollback or
+                # send cached colors over an unknown/reconnected device.
+                self.close()
+                raise
         try:
             (self.path / 'multi_intensity').write_text(' '.join(map(str, colors)))
             (self.path / 'brightness').write_text(str(brightness))
@@ -463,6 +510,7 @@ class Manager:
                 self.error = str(exc)
                 if self.task is None:
                     self.lock.release()
+                    if hasattr(self.hw, 'close'): self.hw.close()
                     self.target = None
                     self.paused = False
         return await self.state()
@@ -500,6 +548,7 @@ class Manager:
         except Exception as exc:
             self.error = str(exc)
             self.lock.release()
+            if hasattr(self.hw, 'close'): self.hw.close()
             self.target = None
         finally:
             if self.task is asyncio.current_task():
@@ -510,6 +559,7 @@ class Manager:
         async with self.guard:
             await self.stop_task()
             self.lock.release()
+            if hasattr(self.hw, 'close'): self.hw.close()
             self.target = None
             self.paused = False
             self.last_frame = None
@@ -521,6 +571,7 @@ class Manager:
             await self.stop_task()
             self.paused = self.target is not None
             self.lock.release()
+            if hasattr(self.hw, 'close'): self.hw.close()
         return await self.state()
 
     async def resume(self):
