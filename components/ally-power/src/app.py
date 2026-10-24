@@ -22,6 +22,40 @@ def launcher_icon():
     return entry.get_string('Icon') if entry else str(BASE / 'icon-gaming.png')
 
 
+def battery_consumption(supplies=Path('/sys/class/power_supply')):
+    """Read-only whole-device battery discharge, never a CPU/TDP estimate."""
+    prefix = 'Consumo global actual: '
+    batteries = [supply for supply in supplies.glob('BAT*')
+                 if supply.name[3:].isdigit() and read(supply / 'type') == 'Battery'
+                 and read(supply / 'scope') in ('', 'System')]
+    batteries.sort(key=lambda supply: (supply.name != 'BAT0', int(supply.name[3:])))
+    if not batteries:
+        return prefix + 'no disponible'
+    battery = batteries[0]
+    status = read(battery / 'status')
+    if status == 'Charging':
+        return prefix + '— · batería cargando'
+    if status in ('Full', 'Not charging'):
+        return prefix + '— · batería sin descarga'
+    if status != 'Discharging':
+        return prefix + 'no disponible'
+    try:
+        watts = abs(int(read(battery / 'power_now'))) / 1_000_000
+    except ValueError:
+        try:
+            current = abs(int(read(battery / 'current_now')))
+            voltage = int(read(battery / 'voltage_now'))
+            if voltage <= 0:
+                return prefix + 'no disponible'
+            watts = current * voltage / 1_000_000_000_000
+        except ValueError:
+            return prefix + 'no disponible'
+    # Reject implausible/sentinel readings and transitions during a sample.
+    if not 0 <= watts < 1000 or read(battery / 'status') != status:
+        return prefix + 'no disponible'
+    return prefix + f'{watts:.1f} W'
+
+
 def recorded_state():
     value = read('/sys/class/firmware-attributes/asus-armoury/attributes/ppt_pl1_spl/current_value')
     watts = float(value) if value.isdigit() and 0 < int(value) < 200 else None
@@ -400,7 +434,6 @@ class Window(Gtk.ApplicationWindow):
         self.active_cores.set_text(str(cpu['cores']))
         self.active_threads.set_text(str(cpu['threads']))
         self.live.set_text(f"SMT {'activado' if cpu['smt'] else 'desactivado'}{suffix}")
-        self.tdp_note.set_text(state.get('tdp_note', ''))
         if actual is not None and not self.dirty and not self.busy:
             self.set_config({'watts': round(actual), **{key: cpu[key] for key in ('smt', 'cores', 'threads')}})
         tray = getattr(self.get_application(), 'tray', None)
@@ -435,6 +468,7 @@ class Window(Gtk.ApplicationWindow):
         return False
 
     def poll(self):
+        self.tdp_note.set_text(battery_consumption())
         source = power_source()
         ac = source['ac']
         maximum = source['max_watts']

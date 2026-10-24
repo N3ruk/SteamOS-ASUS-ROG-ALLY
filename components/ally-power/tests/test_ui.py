@@ -33,6 +33,14 @@ class InterfaceTests(unittest.TestCase):
         window.show_state(state)
         self.assertEqual(window.config()['watts'], 18)
         self.assertEqual(window.active_tdp.get_text(), '18 W')
+        with patch.object(app, 'battery_consumption', return_value='Consumo global actual: 14.2 W'):
+            window.poll()
+        self.assertEqual(window.tdp_note.get_text(), 'Consumo global actual: 14.2 W')
+        window.show_state(state)
+        self.assertEqual(window.tdp_note.get_text(), 'Consumo global actual: 14.2 W')
+        with patch.object(app, 'battery_consumption', return_value='Consumo global actual: 12.5 W'):
+            window.poll()
+        self.assertEqual(window.tdp_note.get_text(), 'Consumo global actual: 12.5 W')
         window.slider.set_value(12)
         state['limits']['stapm'] = 20
         window.show_state(state)

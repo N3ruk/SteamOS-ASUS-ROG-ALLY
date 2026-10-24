@@ -81,6 +81,19 @@ Que el instalador acepte un modelo no equivale a una certificación de funcionam
 - Lanzador y barra: `icon-gaming.png`. Bandeja: `icon.svg`.
 - No coordines simultáneamente ajustes con PowerTools u otro gestor de potencia.
 
+### Consumo global actual
+
+La primera caja, **Estado actual**, muestra `Consumo global actual: XX.X W` y
+actualiza la lectura cada dos segundos, sin necesidad de pulsar Aplicar.
+Es la potencia que entrega la batería interna al equipo completo, no el TDP
+configurado ni una estimación del consumo de CPU. Lee `power_now` en microvatios
+o, si falta, `current_now × voltage_now` con sus unidades sysfs.
+
+Solo utiliza baterías internas BAT0/BATn; no toma datos de mandos o periféricos.
+Si la batería está cargando o sin descargar, muestra ese estado en vez de
+confundir la potencia de carga con el consumo del equipo. Si falta telemetría,
+indica que no está disponible; no conserva una lectura antigua ni usa el TDP.
+
 ### TDP configurado no significa consumo medido
 
 En algunos SteamOS, RyzenAdj no puede leer la telemetría por las restricciones de memoria.

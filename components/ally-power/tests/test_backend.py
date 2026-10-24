@@ -67,6 +67,7 @@ class LogicTests(unittest.TestCase):
                                      'stderr': ''})()
         with patch.object(backend, 'FALLBACK_LIMITS', None), \
              patch.object(backend.subprocess, 'run', return_value=result) as run, \
+             patch.object(backend, 'remembered_limits', return_value=None), \
              patch.object(backend, 'read', return_value='16'):
             self.assertEqual(backend.limits(), dict(stapm=16, fast=16, slow=16))
             self.assertIsNotNone(backend.FALLBACK_LIMITS)

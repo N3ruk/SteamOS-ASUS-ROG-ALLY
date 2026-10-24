@@ -6,7 +6,7 @@ Compatibilidad comprobada por el instalador: SteamOS x86_64, ASUS ROG Ally RC71L
 
 ## Instalación
 
-Individual: `Ally-Power-Escritorio-1.0.0.zip`, o selección en centralizado. Reutiliza sin alterar `Ally-Power-1.0.0-SteamOS-x86_64.run`. Se pide autorización del sistema, no se almacena tu contraseña. Si está abierta, ciérrala incluida la bandeja. Instala app/helper en `/usr/local`, sin servicios de aplicación permanente. No aplica ajustes al instalar.
+Individual: `Ally-Power-Escritorio-1.0.0.zip`, o selección en centralizado. Utiliza `Ally-Power-1.0.0-SteamOS-x86_64.run`, reconstruido desde las fuentes incluidas. Se pide autorización del sistema, no se almacena tu contraseña. Si está abierta, ciérrala incluida la bandeja. Instala app/helper en `/usr/local`, sin servicios de aplicación permanente. No aplica ajustes al instalar.
 
 El instalador propio comprueba sus dependencias; entre ellas Python/PyGObject GTK4, `pkexec`, `kdialog`, utilidades del sistema y bibliotecas necesarias de RyzenAdj. No se usa pacman para modificar el sistema.
 
@@ -15,6 +15,13 @@ El instalador propio comprueba sus dependencias; entre ellas Python/PyGObject GT
 Abre Ally Power en el menú. Usa los controles de la app y su comportamiento original de Aplicar; **la petición de cambios en tiempo real corresponde al plugin Decky**, no se cambia aquí la app ya existente. El helper autorizado limita las escrituras a CPU/TDP y comparte `/run/desktop-power.lock` con Decky.
 
 No lo uses a la vez que otro gestor de potencia/SMT. El cierre normal conserva los últimos ajustes; una caída del controlador puede restaurar los dominios todavía controlados. Cierra la app antes de usar el plugin en Gaming. No se promete neutralizar gestores externos desconocidos.
+
+En **Estado actual**, `Consumo global actual: XX.X W` se actualiza cada dos
+segundos leyendo la descarga de la batería interna (BAT0/BATn), no el TDP
+configurado ni la batería de mandos. Usa potencia en microvatios o corriente
+por voltaje si es necesario. Al cargar, dejar de descargar o faltar datos,
+indica ese estado sin mostrar la potencia de carga como consumo global.
+Esta lectura no cambia el funcionamiento de Aplicar, límites TDP, SMT o cierre.
 
 ## Desinstalar / reconstruir
 
