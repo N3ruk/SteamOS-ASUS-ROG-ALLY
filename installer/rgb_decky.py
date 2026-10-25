@@ -73,7 +73,7 @@ class Client(decky.Client):
             if (not isinstance(state, dict) or state.get('version') not in KNOWN
                     or state.get('version') != previous.get('version')):
                 raise RuntimeError('ALLY RGB existente no reconocido; no se sustituye.')
-            if state.get('active') or state.get('paused'):
+            if state.get('active') or state.get('paused') or state.get('recovery', {}).get('pending'):
                 raise RuntimeError('ALLY RGB controla el hardware o tiene una recuperación pendiente. Desactívalo desde Decky y utiliza su instalador manual para sustituirlo; la suite no lo detiene.')
             backup = decky.backup_previous(previous['version'], folder_name='ally-rgb', plugin_name=NAME,
                                            author='SteamOS Ally contributors', backup_name='ALLY-RGB')

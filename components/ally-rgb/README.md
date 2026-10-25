@@ -35,7 +35,15 @@ se aplica automáticamente al encender ni al despertar. Cambiar controles sí ap
 La recuperación al encender funciona cuando Decky carga el plugin, incluso sin abrir su panel.
 Puede reintentar hasta 30 segundos si el dispositivo RGB todavía no está disponible.
 No reintenta contra otro gestor, un trigger del kernel o después de un cambio manual.
-La recuperación al despertar requiere las notificaciones de suspensión/reanudación de Steam.
+La recuperación al despertar se ejecuta en el backend, sin depender del panel o de avisos
+internos de Steam. Observa `PrepareForSleep` de systemd-logind mediante el `busctl` del sistema
+y dispone de un respaldo comparando los relojes Linux BOOTTIME/MONOTONIC; no usa la hora civil.
+Al despertar cierra el transporte anterior e invalida las cachés, espera brevemente y reenvía
+brillo y cuatro colores aunque sean fijos. Reintenta errores transitorios del dispositivo
+hasta 20 veces (aproximadamente 10 segundos), sin reintentar contra otro gestor, bloqueo,
+trigger o identidad no válida. Una edición manual o descarga cancela la recuperación.
+El monitor se cierra con el plugin; no instala servicios ni cambia la configuración del sistema.
+El estado incluye el detector y la recuperación pendiente; los pasos se registran en Decky.
 No controla las luces durante la suspensión y no cambia `sleep_animation` desde la interfaz.
 
 Las zonas se numeran 1–4 porque su posición física exacta queda pendiente de confirmar.

@@ -95,11 +95,11 @@ class RGBPayloadTests(unittest.TestCase):
 
 
 class RGBProtocolTests(unittest.IsolatedAsyncioTestCase):
-    def client(self,previous=None,active=False,paused=False):
+    def client(self,previous=None,active=False,paused=False,recovering=False):
         client=rgb_decky.Client(None,None)
         async def call(route,*args):
             if route=='loader/get_plugins':return [previous] if previous else []
-            if route=='loader/call_plugin_method':return {'version':previous['version'],'active':active,'paused':paused}
+            if route=='loader/call_plugin_method':return {'version':previous['version'],'active':active,'paused':paused,'recovery':{'pending':recovering}}
         client.call=AsyncMock(side_effect=call)
         client.prompt=AsyncMock(return_value=['ALLY RGB','1.0.0','request','digest',2 if previous else 0])
         return client
@@ -129,6 +129,14 @@ class RGBProtocolTests(unittest.IsolatedAsyncioTestCase):
             client=self.client(previous)
             with self.assertRaises(RuntimeError):await client.prepare('/tmp/payload.zip','digest','1.0.0')
             self.assertNotIn('utilities/install_plugin',[c.args[0] for c in client.call.await_args_list])
+
+    async def test_pending_wake_recovery_is_not_interrupted_by_installer(self):
+        client=self.client({'name':'ALLY RGB','version':'1.0.0'},recovering=True)
+        with patch.object(rgb_decky.decky,'backup_previous') as backup:
+            with self.assertRaisesRegex(RuntimeError,'recuperación pendiente'):
+                await client.prepare('/tmp/payload.zip','digest','1.0.0')
+            backup.assert_not_called()
+        self.assertNotIn('utilities/install_plugin',[c.args[0] for c in client.call.await_args_list])
 
     async def test_recognized_inactive_update_backs_up_before_request(self):
         client=self.client({'name':'ALLY RGB','version':'1.2.0'})

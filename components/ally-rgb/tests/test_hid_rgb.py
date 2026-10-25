@@ -114,6 +114,12 @@ class TransportTests(unittest.TestCase):
             self.assertEqual(len(calls), 3)  # brightness once, two colors
             self.assertTrue(opened.call_args.args[1] & os.O_NOFOLLOW)
             transport.close(); closed.assert_called_once_with(41)
+            transport.write(Path('/fake/device'), [0x654321]*4, 128)
+            self.assertEqual(len(calls), 5)  # same frame after wake still resends brightness
+            self.assertEqual(calls[3][:4], hid.BRIGHTNESS_PREFIX)
+            self.assertEqual(opened.call_count, 2)
+            transport.close()
+            self.assertEqual(closed.call_count, 2)
 
     def test_bad_opened_identity_never_sends_and_closes(self):
         identity = (Path('/dev/fake-rgb'), '/fake/device', 42)

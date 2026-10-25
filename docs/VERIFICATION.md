@@ -2,9 +2,9 @@
 
 ## Suite 1.0.0
 
-- 44 pruebas de selección, catálogo, integridad, instaladores y adaptadores Decky.
-- ALLY RGB: 74 pruebas Python y 13 JavaScript; TypeScript estricto y Rollup correctos.
-- 131 pruebas automatizadas de la suite y ALLY RGB en esta verificación. Los números
+- 45 pruebas de selección, catálogo, integridad, instaladores y adaptadores Decky.
+- ALLY RGB: 90 pruebas Python y 14 JavaScript; TypeScript estricto y Rollup correctos.
+- 149 pruebas automatizadas de la suite y ALLY RGB en esta verificación. Los números
   se refieren a casos de prueba, no a equipos físicos.
 
 La interfaz gráfica se prueba con todas las casillas desmarcadas. No ofrece Ally Power
@@ -56,6 +56,13 @@ descriptor, nodo abierto, cierre ante desaparición, lista positiva de dos coman
 rechazo de paquetes ajenos, dimmer y ausencia de escrituras al consultar el estado.
 El instalador descubre ese dispositivo sin abrir ni escribir hidraw. El éxito de HID
 significa aceptación por transporte; no equivale a readback físico de los colores.
+
+La recuperación backend se prueba con señales logind, avisos perdidos/duplicados,
+respaldo de relojes de suspensión, cierre del monitor, reenvío de brillo y colores fijos,
+dispositivo tardío, reintentos limitados y cancelación por edición/cierre. No se reintenta
+ante otro gestor, bloqueo o identidad inválida. La interfaz no requiere hooks Steam.
+El instalador también rechaza una recuperación pendiente aunque el hardware esté liberado.
+No se ha realizado un ciclo físico de suspensión para esta corrección.
 
 ## Otras aplicaciones y límites
 

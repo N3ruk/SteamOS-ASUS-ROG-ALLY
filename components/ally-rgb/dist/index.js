@@ -122,8 +122,7 @@ function transitionChannel(config, endpoint, shift, value) {
 
 const api = {
     state: callable('get_state'), apply: callable('apply_config'),
-    select: callable('select_zone'), pause: callable('pause'),
-    resume: callable('resume'),
+    select: callable('select_zone'),
 };
 // Steam's Dropdown supports controlled mode, omitted from @decky/ui 4.12.1's types.
 // Keep the displayed editor selection on the same source of truth as saved settings.
@@ -135,8 +134,6 @@ const subscribers = new Set();
 let current = null;
 let lastError = '';
 let reading = false;
-let hooks = false;
-let hooksWarning = '';
 let closing = false;
 let revision = 0;
 let lightingRevision = 0;
@@ -228,47 +225,22 @@ function Content() {
     const selected = indexes(config.zone);
     const zoneConfig = config.zones[selected[0]];
     const effect = selected.every(i => config.zones[i].effect === zoneConfig.effect) ? zoneConfig.effect : 'mixed';
-    const status = error || state.error || state.warning || hooksWarning ||
+    const status = error || state.error || state.warning ||
         (state.conflicts.length ? 'Desactiva el otro gestor RGB: ' + state.conflicts.join(', ') :
             state.paused ? 'Pausado durante la suspensión.' : state.active ? 'ALLY RGB tiene el control.' : 'Sin control adquirido.');
     const displayColors = state.active && state.actual ? state.actual.hex : config.zones.map(zone => zone.color);
     return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSection, { children: SP_JSX.jsxs(Note, { children: [SP_JSX.jsx("strong", { children: "ALLY RGB" }), " \u00B7 4 zonas", state.battery !== null ? ` · batería ${state.battery}%` : ' · batería sin datos', SP_JSX.jsx("div", { style: { display: 'flex', gap: 12, padding: '12px 0' }, children: displayColors.map((c, i) => SP_JSX.jsx("div", { title: `Zona ${i + 1}: ${c}${selected.includes(i) ? ' · seleccionada' : ''}`, style: { background: c, color: '#fff', textShadow: '0 1px 3px #000', display: 'grid', placeItems: 'center', width: 38, height: 38, borderRadius: '50%', border: selected.includes(i) ? '3px solid #d1fff2' : '3px solid #556168', opacity: selected.includes(i) ? 1 : .55 }, children: i + 1 }, i)) }), SP_JSX.jsx("div", { children: pending ? 'Aplicando el último cambio…' : status })] }) }), SP_JSX.jsxs(DFL.PanelSection, { title: "Iluminaci\u00F3n", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: "Iluminaci\u00F3n", checked: config.enabled, disabled: blocked, onChange: enabled => edit({ enabled }) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.SliderField, { label: "Brillo", value: config.brightness, min: 0, max: 100, step: 1, valueSuffix: "%", disabled: blocked, onChange: brightness => edit({ brightness: Math.round(brightness) }) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(ControlledDropdown, { controlled: true, label: "Zonas", selectedOption: config.zone, rgOptions: zoneOptions, disabled: blocked, onChange: o => edit({ zone: o.data }, true) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(ControlledDropdown, { controlled: true, label: "Efecto", selectedOption: effect, rgOptions: [...(effect === 'mixed' ? [{ data: 'mixed', label: 'Varios efectos (conservar)' }] : []), ...effects.map(([data, label]) => ({ data, label }))], disabled: blocked, onChange: o => { if (o.data !== 'mixed')
-                                edit(zoneSettings(draft.current, { effect: o.data })); } }) }), effect !== 'mixed' && effect !== 'solid' && effect !== 'battery' && SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.SliderField, { label: "Velocidad", value: zoneConfig.speed, min: 10, max: 100, step: 1, valueSuffix: "%", disabled: blocked, onChange: speed => edit(zoneSettings(draft.current, { speed: Math.round(speed) })) }) })] }), (effect === 'solid' || effect === 'breath') && SP_JSX.jsx(DFL.PanelSection, { title: "Color de las zonas seleccionadas", children: channels.map(([shift, label]) => SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.SliderField, { label: label, value: channelValue(zoneConfig.color, shift), min: 0, max: 255, step: 1, disabled: blocked, onChange: value => edit(zoneChannel(draft.current, shift, value)) }) }, label)) }), effect === 'gradient' && zoneConfig.transition_colors.map((color, endpoint) => SP_JSX.jsxs(DFL.PanelSection, { title: endpoint === 0 ? 'Color inicial' : 'Color final', children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { height: 20, width: '100%', background: color, border: '1px solid #d1fff2', borderRadius: 4 } }) }), channels.map(([shift, label]) => SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.SliderField, { label: label, value: channelValue(color, shift), min: 0, max: 255, step: 1, disabled: blocked, onChange: value => edit(transitionChannel(draft.current, endpoint, shift, value)) }) }, label))] }, endpoint)), SP_JSX.jsx(DFL.PanelSection, { children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: "Recuperar al despertar/encender", checked: config.resume, disabled: blocked, description: hooks ? 'Guarda los ajustes y los restaura al despertar o encender.' : 'Restaura al encender; Steam no ofrece la señal de despertar en esta sesión.', onChange: resume => edit({ resume }) }) }) })] });
+                                edit(zoneSettings(draft.current, { effect: o.data })); } }) }), effect !== 'mixed' && effect !== 'solid' && effect !== 'battery' && SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.SliderField, { label: "Velocidad", value: zoneConfig.speed, min: 10, max: 100, step: 1, valueSuffix: "%", disabled: blocked, onChange: speed => edit(zoneSettings(draft.current, { speed: Math.round(speed) })) }) })] }), (effect === 'solid' || effect === 'breath') && SP_JSX.jsx(DFL.PanelSection, { title: "Color de las zonas seleccionadas", children: channels.map(([shift, label]) => SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.SliderField, { label: label, value: channelValue(zoneConfig.color, shift), min: 0, max: 255, step: 1, disabled: blocked, onChange: value => edit(zoneChannel(draft.current, shift, value)) }) }, label)) }), effect === 'gradient' && zoneConfig.transition_colors.map((color, endpoint) => SP_JSX.jsxs(DFL.PanelSection, { title: endpoint === 0 ? 'Color inicial' : 'Color final', children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: { height: 20, width: '100%', background: color, border: '1px solid #d1fff2', borderRadius: 4 } }) }), channels.map(([shift, label]) => SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.SliderField, { label: label, value: channelValue(color, shift), min: 0, max: 255, step: 1, disabled: blocked, onChange: value => edit(transitionChannel(draft.current, endpoint, shift, value)) }) }, label))] }, endpoint)), SP_JSX.jsx(DFL.PanelSection, { children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: "Recuperar al despertar/encender", checked: config.resume, disabled: blocked, description: "Guarda los ajustes y los restaura al despertar o encender, sin depender de los avisos de Steam.", onChange: resume => edit({ resume }) }) }) })] });
 }
-var index = definePlugin(() => {
-    const registrations = [];
-    const system = window.SteamClient?.System;
-    let powerChain = Promise.resolve();
-    try {
-        if (system?.RegisterForOnSuspendRequest && system?.RegisterForOnResumeFromSuspend) {
-            registrations.push(system.RegisterForOnSuspendRequest(() => {
-                queue.drop();
-                powerChain = powerChain.then(async () => { await queue.idle(); publish(await api.pause()); }).catch(e => publish(null, String(e)));
-            }));
-            registrations.push(system.RegisterForOnResumeFromSuspend(() => {
-                powerChain = powerChain.then(async () => { publish(await api.resume()); }).catch(e => publish(null, String(e)));
-            }));
-            hooks = true;
-        }
-    }
-    catch {
-        hooksWarning = 'No se ha podido activar la recuperación automática al despertar.';
-    }
-    return { name: 'ALLY RGB', titleView: SP_JSX.jsx("div", { className: DFL.staticClasses.Title, children: "ALLY RGB" }),
-        content: SP_JSX.jsx(Content, {}), icon: SP_JSX.jsx("span", { style: { color: '#7be5cd' }, children: "\u25C9" }),
-        onDismount() {
-            closing = true;
-            for (const item of registrations) {
-                if (typeof item === 'function')
-                    item();
-                else
-                    item?.unregister?.();
-            }
-            // Backend lifecycle owns shutdown. A late frontend unload must not release
-            // a freshly reloaded backend after it restored the user's saved settings.
-            void queue.close().then(() => powerChain).catch(() => { });
-        } };
-});
+var index = definePlugin(() => ({
+    name: 'ALLY RGB', titleView: SP_JSX.jsx("div", { className: DFL.staticClasses.Title, children: "ALLY RGB" }),
+    content: SP_JSX.jsx(Content, {}), icon: SP_JSX.jsx("span", { style: { color: '#7be5cd' }, children: "\u25C9" }),
+    onDismount() {
+        closing = true;
+        // Backend owns sleep observation and shutdown, including late frontend unloads.
+        void queue.close().catch(() => { });
+    },
+}));
 
 export { index as default };
 //# sourceMappingURL=index.js.map

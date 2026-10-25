@@ -98,6 +98,6 @@ python3 verify_packages.py
 
 Conserva los cinco individuales existentes byte a byte; el resultado contiene siete ZIP.
 Para una sustitución autorizada de la release existente se reemplazan únicamente el
-centralizado y SHA256SUMS y se incorpora ALLY-RGB-1.0.0.zip. Su descripción puede incluir
+centralizado, ALLY-RGB-1.0.0.zip y SHA256SUMS. Su descripción puede incluir
 el catálogo completo, sin notas de actualización ni release nueva. Conserva tag, título,
 fechas de creación/publicación y destino originales; no fuerces un retag ni un push.

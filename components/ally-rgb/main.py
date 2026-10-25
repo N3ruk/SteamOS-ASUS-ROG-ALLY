@@ -5,11 +5,14 @@ import sys
 import decky
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from py_modules.rgb import Manager
+from py_modules.power import SleepMonitor
 
 
 class Plugin:
     async def _main(self):
-        self.manager = Manager(Path(decky.DECKY_PLUGIN_SETTINGS_DIR))
+        self.manager = Manager(Path(decky.DECKY_PLUGIN_SETTINGS_DIR), logger=decky.logger)
+        self.manager.power_monitor = SleepMonitor(self.manager.power_event, logger=decky.logger)
+        self.manager.power_monitor.start()
         self.manager.startup_task = asyncio.create_task(self.manager.restore_startup())
 
     async def get_state(self):
@@ -31,4 +34,4 @@ class Plugin:
         return await self.manager.resume()
 
     async def _unload(self):
-        await self.manager.release()
+        await self.manager.shutdown()

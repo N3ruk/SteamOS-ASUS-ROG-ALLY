@@ -2,8 +2,10 @@
 import asyncio
 import colorsys
 import contextlib
+import errno
 import fcntl
 import json
+import logging
 import math
 import os
 from pathlib import Path
@@ -240,7 +242,7 @@ class Hardware:
                 self.transport = RGBTransport()
             try:
                 self.transport.locator((self.path/'device').resolve(strict=True))
-            except (OSError, ValueError) as exc:
+            except ValueError as exc:
                 raise RGBError('Este kernel recorta colores y no se puede usar RGB directo: ' + str(exc)) from exc
             result.update(backend='hid-rgb', verification='transport-accepted', kernel_observed=self.observation(result))
             if self.hid_last is not None:
@@ -371,11 +373,15 @@ class RGBLock:
 
 
 class Manager:
-    def __init__(self, settings, hardware=None, lock=None, competitors=writers, battery=battery_level, clock=time.monotonic):
+    def __init__(self, settings, hardware=None, lock=None, competitors=writers, battery=battery_level, clock=time.monotonic, logger=None):
         self.hw = hardware or Hardware()
         self.lock = lock or RGBLock()
         self.settings = Settings(settings / 'settings.json')
         self.startup_task = None
+        self.recovery_task = None
+        self.power_monitor = None
+        self.logger = logger or logging.getLogger('ally-rgb')
+        self.apply_error = None
         self.competitors, self.battery, self.clock = competitors, battery, clock
         self.guard = asyncio.Lock()
         self.target = None
@@ -389,6 +395,13 @@ class Manager:
 
     async def cancel_startup(self):
         task, self.startup_task = self.startup_task, None
+        if task and task is not asyncio.current_task():
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+    async def cancel_recovery(self):
+        task, self.recovery_task = self.recovery_task, None
         if task and task is not asyncio.current_task():
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -439,7 +452,10 @@ class Manager:
         return dict(version='1.0.0', supported=supported, actual=actual,
                     active=self.lock.file is not None, paused=self.paused, config=self.target or self.settings.config,
                     editor_zone=self.editor_zone,
-                    conflicts=conflicts, error=error, warning=self.settings.warning, battery=self.battery())
+                    conflicts=conflicts, error=error, warning=self.settings.warning, battery=self.battery(),
+                    recovery=dict(pending=self.recovery_task is not None,
+                                  logind=self.power_monitor.logind if self.power_monitor else 'not-started',
+                                  suspend_clock=self.power_monitor is not None))
 
     def gate(self):
         others = self.competitors()
@@ -478,7 +494,9 @@ class Manager:
     async def apply(self, config, *, automatic=False):
         if not automatic:
             await self.cancel_startup()
+            await self.cancel_recovery()
         async with self.guard:
+            self.apply_error = None
             try:
                 config = validate(config)
                 old = self.target
@@ -507,6 +525,7 @@ class Manager:
                 if not automatic:
                     self.save_settings(config)
             except Exception as exc:
+                self.apply_error = exc
                 self.error = str(exc)
                 if self.task is None:
                     self.lock.release()
@@ -556,6 +575,7 @@ class Manager:
 
     async def release(self):
         await self.cancel_startup()
+        await self.cancel_recovery()
         async with self.guard:
             await self.stop_task()
             self.lock.release()
@@ -567,19 +587,73 @@ class Manager:
 
     async def pause(self):
         await self.cancel_startup()
+        await self.cancel_recovery()
         async with self.guard:
             await self.stop_task()
             self.paused = self.target is not None
             self.lock.release()
             if hasattr(self.hw, 'close'): self.hw.close()
+            self.last_frame = None
         return await self.state()
 
     async def resume(self):
-        if self.paused and self.target and self.target['resume']:
-            return await self.apply(self.target, automatic=True)
-        if self.paused:
-            return await self.release()
+        task = await self.request_resume()
+        if task:
+            await task
         return await self.state()
+
+    async def power_event(self, sleeping):
+        if sleeping:
+            await self.pause()
+        else:
+            await self.request_resume()
+
+    async def request_resume(self):
+        if self.recovery_task:
+            return self.recovery_task
+        # A wake can arrive without its pre-sleep event. Invalidate both HID
+        # brightness and frame caches even when a solid frame is unchanged.
+        await self.pause()
+        config = self.target
+        if not config or not config['resume']:
+            await self.release()
+            return None
+        self.recovery_task = asyncio.create_task(self.recover_wake(config))
+        return self.recovery_task
+
+    async def recover_wake(self, config, attempts=20, interval=.5, settle=.25):
+        try:
+            await asyncio.sleep(settle)
+            for attempt in range(attempts):
+                # Settings and editor selection remain untouched on disk. A
+                # manual lighting edit/release cancels this task before applying.
+                state = await self.apply(dict(config, zone=self.editor_zone), automatic=True)
+                if not self.apply_error:
+                    self.logger.info('RGB wake restored brightness/four zones on attempt %d', attempt + 1)
+                    return
+                exc = self.apply_error
+                transient = isinstance(exc, OSError) and exc.errno in (
+                    errno.ENOENT, errno.ENODEV, errno.EIO, errno.EAGAIN, errno.ETIMEDOUT, errno.EPIPE)
+                # A competing lock, trigger, invalid identity or external writer
+                # is not a transient device error and must never be overridden.
+                if isinstance(exc, BlockingIOError):
+                    transient = False
+                if not transient or attempt + 1 == attempts:
+                    self.logger.warning('RGB wake recovery stopped: %s', exc)
+                    return
+                # apply() closes stale descriptors on failure; retain only this
+                # cycle's authorized target so another suspend can resume it.
+                self.target, self.paused = config, True
+                self.logger.info('RGB device not ready after wake; retry %d: %s', attempt + 1, exc)
+                await asyncio.sleep(interval)
+        finally:
+            if self.recovery_task is asyncio.current_task():
+                self.recovery_task = None
+
+    async def shutdown(self):
+        if self.power_monitor:
+            await self.power_monitor.close()
+        await self.release()
 
     async def set_sleep(self, enabled):
         async with self.guard:

@@ -56,7 +56,13 @@ anteriores no se aplican colores al cargar. Si ya tenías una configuración gua
 **Recuperar al despertar/encender** activado, el plugin la restaura al cargar Decky,
 incluso sin abrir su panel. Conserva estado apagado, brillo y los cuatro efectos/colores/velocidades.
 Desactivar la opción impide la restauración automática, pero no borra los ajustes.
-Al despertar depende de las notificaciones de Steam; no controla las luces durante la suspensión.
+La recuperación al despertar pertenece al backend: señales de systemd-logind y respaldo
+con los relojes Linux BOOTTIME/MONOTONIC, sin depender de los avisos internos de Steam.
+Invalida las cachés y reenvía brillo y cuatro colores, también con efectos fijos. Reintenta
+los errores transitorios del dispositivo durante unos 10 segundos; no insiste contra otro
+gestor, bloqueo, trigger o identidad no válida. Una edición manual o descarga cancela los
+reintentos. El monitor termina con el backend, sin servicios ni configuración adicionales.
+No controla las luces durante la suspensión.
 
 No uses otro escritor RGB a la vez. ALLY RGB detecta HueSync, HHD, Ally Center, asusd
 u OpenRGB y rechaza competir; no los detiene ni desinstala automáticamente. Detección por procesos
@@ -97,7 +103,7 @@ conocidos. No garantiza detectar escritores HID desconocidos. No reinstala contr
 - [Verificación y límites de la suite](VERIFICATION.md).
 - [Licencias y referencias](../components/ally-rgb/THIRD-PARTY.md).
 
-87 pruebas automatizadas (74 Python y 13 JavaScript), compilación TypeScript/Rollup y carga
+104 pruebas automatizadas (90 Python y 14 JavaScript), compilación TypeScript/Rollup y carga
 real del backend/frontend comprobadas. Se observó por readback que los efectos ya activos continúan
 al seleccionar otra zona. No equivale a verificar visualmente los colores, un ciclo físico de
 suspensión/encendido o una instalación nueva en cualquier modelo de Ally.

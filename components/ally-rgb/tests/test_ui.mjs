@@ -6,7 +6,7 @@ import ts from 'typescript';
 
 // Isolated hook/Decky boundary: execute the real component and its event handlers,
 // without starting Steam, importing Steam's webpack modules, or touching LEDs.
-function harness() {
+function harness(steamClient = {System: {}}) {
   const colors=['#112233','#445566','#778899','#aabbcc'];
   const state = {version:'1.0.0',supported:true,active:true,paused:false,editor_zone:'all',
     config:{enabled:true,brightness:50,resume:true,zone:'all',zones:colors.map(color=>({
@@ -47,8 +47,7 @@ function harness() {
     const source=fs.readFileSync(new URL('../src/'+relative,import.meta.url),'utf8');
     const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
     const result={};
-    vm.runInNewContext(code,{exports:result,require:name=>modules[name],window:{SteamClient:{System:{
-      RegisterForOnSuspendRequest:()=>()=>{},RegisterForOnResumeFromSuspend:()=>()=>{}}}},
+    vm.runInNewContext(code,{exports:result,require:name=>modules[name],window:{SteamClient:steamClient},
       setInterval:fn=>{timers.push(fn);return timers.length;},clearInterval:()=>{},console,structuredClone});
     return result;
   }
@@ -160,4 +159,14 @@ test('mixed group selection preserves independent effects until an explicit grou
 test('unknown system battery is shown as unavailable rather than a guessed percentage',async()=>{
   const h=harness();h.state.battery=null;await h.ready();
   assert.match(JSON.stringify(h.render()),/batería sin datos/);
+});
+
+
+test('wake recovery does not require or register Steam frontend sleep hooks',async()=>{
+  const steamClient = new Proxy({}, {get(){throw new Error('Steam power hooks must not be used');}});
+  const h=harness(steamClient);await h.ready();
+  const toggle=h.find(h.render(),'Recuperar al despertar/encender');
+  assert.match(toggle.props.description,/sin depender de los avisos de Steam/);
+  toggle.props.onChange(false);await h.flush();
+  assert.equal(h.applied.at(-1).resume,false);
 });

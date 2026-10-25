@@ -11,8 +11,7 @@ type State = {
 };
 const api = {
   state: callable<[], State>('get_state'), apply: callable<[config: Config], State>('apply_config'),
-  select: callable<[zone: Zone], State>('select_zone'), pause: callable<[], State>('pause'),
-  resume: callable<[], State>('resume'),
+  select: callable<[zone: Zone], State>('select_zone'),
 };
 // Steam's Dropdown supports controlled mode, omitted from @decky/ui 4.12.1's types.
 // Keep the displayed editor selection on the same source of truth as saved settings.
@@ -24,8 +23,6 @@ const subscribers = new Set<(state: State | null, error: string, pending: boolea
 let current: State | null = null;
 let lastError = '';
 let reading = false;
-let hooks = false;
-let hooksWarning = '';
 let closing = false;
 let revision = 0;
 let lightingRevision = 0;
@@ -94,7 +91,7 @@ function Content() {
   const selected = indexes(config.zone);
   const zoneConfig = config.zones[selected[0]];
   const effect = selected.every(i=>config.zones[i].effect===zoneConfig.effect) ? zoneConfig.effect : 'mixed';
-  const status = error || state.error || state.warning || hooksWarning ||
+  const status = error || state.error || state.warning ||
     (state.conflicts.length ? 'Desactiva el otro gestor RGB: ' + state.conflicts.join(', ') :
       state.paused ? 'Pausado durante la suspensión.' : state.active ? 'ALLY RGB tiene el control.' : 'Sin control adquirido.');
   const displayColors = state.active && state.actual ? state.actual.hex : config.zones.map(zone=>zone.color);
@@ -119,38 +116,17 @@ function Content() {
       {channels.map(([shift,label]) => <PanelSectionRow key={label}><SliderField label={label} value={channelValue(color,shift)} min={0} max={255} step={1} disabled={blocked} onChange={value => edit(transitionChannel(draft.current,endpoint,shift,value))}/></PanelSectionRow>)}
     </PanelSection>)}
     <PanelSection>
-      <PanelSectionRow><ToggleField label="Recuperar al despertar/encender" checked={config.resume} disabled={blocked} description={hooks ? 'Guarda los ajustes y los restaura al despertar o encender.' : 'Restaura al encender; Steam no ofrece la señal de despertar en esta sesión.'} onChange={resume=>edit({resume})}/></PanelSectionRow>
+      <PanelSectionRow><ToggleField label="Recuperar al despertar/encender" checked={config.resume} disabled={blocked} description="Guarda los ajustes y los restaura al despertar o encender, sin depender de los avisos de Steam." onChange={resume=>edit({resume})}/></PanelSectionRow>
     </PanelSection>
   </>;
 }
 
-type Registration = {unregister?: () => void} | (() => void) | undefined;
-type SystemHooks = {
-  RegisterForOnSuspendRequest?: (fn: () => void) => Registration;
-  RegisterForOnResumeFromSuspend?: (fn: () => void) => Registration;
-};
-export default definePlugin(() => {
-  const registrations: Registration[] = [];
-  const system = (window as unknown as {SteamClient?: {System?: SystemHooks}}).SteamClient?.System;
-  let powerChain = Promise.resolve();
-  try {
-    if (system?.RegisterForOnSuspendRequest && system?.RegisterForOnResumeFromSuspend) {
-      registrations.push(system.RegisterForOnSuspendRequest(() => {
-        queue.drop(); powerChain = powerChain.then(async()=>{await queue.idle();publish(await api.pause());}).catch(e=>publish(null,String(e)));
-      }));
-      registrations.push(system.RegisterForOnResumeFromSuspend(() => {
-        powerChain = powerChain.then(async()=>{publish(await api.resume());}).catch(e=>publish(null,String(e)));
-      }));
-      hooks = true;
-    }
-  } catch { hooksWarning = 'No se ha podido activar la recuperación automática al despertar.'; }
-  return { name: 'ALLY RGB', titleView: <div className={staticClasses.Title}>ALLY RGB</div>,
-    content: <Content/>, icon: <span style={{color:'#7be5cd'}}>◉</span>,
-    onDismount() {
-      closing = true;
-      for (const item of registrations) { if (typeof item === 'function') item(); else item?.unregister?.(); }
-      // Backend lifecycle owns shutdown. A late frontend unload must not release
-      // a freshly reloaded backend after it restored the user's saved settings.
-      void queue.close().then(()=>powerChain).catch(()=>{});
-    } };
-});
+export default definePlugin(() => ({
+  name: 'ALLY RGB', titleView: <div className={staticClasses.Title}>ALLY RGB</div>,
+  content: <Content/>, icon: <span style={{color:'#7be5cd'}}>◉</span>,
+  onDismount() {
+    closing = true;
+    // Backend owns sleep observation and shutdown, including late frontend unloads.
+    void queue.close().catch(()=>{});
+  },
+}));

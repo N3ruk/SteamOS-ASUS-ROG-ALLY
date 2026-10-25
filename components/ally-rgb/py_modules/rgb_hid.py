@@ -4,6 +4,7 @@ Wire format: hid-asus-ally's LED commands (Luke Jones); see THIRD-PARTY.md.
 Only SET_FEATURE 0x5a:d1:08:0c (four RGB zones) and 0x5a:ba:c5:c4 (LED
 brightness) are permitted. No input reads, driver detach or persistent settings.
 """
+import errno
 import fcntl
 import os
 from pathlib import Path
@@ -138,4 +139,4 @@ class RGBTransport:
         validate_report(report)
         result = fcntl.ioctl(self.fd, SET_FEATURE, bytearray(report), True)
         if result != REPORT_SIZE:
-            raise OSError('El transporte no aceptó el informe RGB completo.')
+            raise OSError(errno.EIO, 'El transporte no aceptó el informe RGB completo.')
