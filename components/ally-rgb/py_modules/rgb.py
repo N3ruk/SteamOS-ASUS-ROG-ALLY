@@ -16,6 +16,7 @@ import time
 LED = Path('/sys/class/leds/ally:rgb:joystick_rings')
 EFFECTS = ('solid', 'breath', 'rainbow', 'wave', 'gradient', 'battery')
 ZONES = {'all': (0, 1, 2, 3), 'pair12': (0, 1), 'pair34': (2, 3),
+         'pair23': (1, 2), 'pair14': (0, 3),
          'zone1': (0,), 'zone2': (1,), 'zone3': (2,), 'zone4': (3,)}
 LEGACY_DEFAULT = dict(enabled=True, brightness=50, speed=50, effect='solid',
                colors=['#00ddbb'] * 4, resume=True, zone='all',
@@ -197,7 +198,8 @@ def writers():
 
 
 class Hardware:
-    def __init__(self, path=LED, product_path=Path('/sys/class/dmi/id/product_name'), transport=None):
+    def __init__(self, path=LED, product_path=Path('/sys/class/dmi/id/product_name'), transport=None, write_guard=None):
+        self.write_guard = write_guard or (lambda:None)
         self.path = path
         self.product_path = product_path
         self.transport = transport
@@ -214,6 +216,7 @@ class Hardware:
         return state['device'], tuple(state['colors']), state['brightness'], state['trigger']
 
     def state(self):
+        self.write_guard()
         product = read(self.product_path)
         if 'ROG Ally' not in product or 'RC71L' not in product:
             raise RGBError('Esta versión está validada para ROG Ally RC71L. Ally X aún no está validada.')
@@ -240,7 +243,7 @@ class Hardware:
         if limits == [255]*4:
             from .rgb_hid import RGBTransport
             if self.transport is None:
-                self.transport = RGBTransport()
+                self.transport = RGBTransport(gate=self.write_guard)
             try:
                 node, linked, device_number = self.transport.locator((self.path/'device').resolve(strict=True))
                 if Path(node).exists():
@@ -285,7 +288,9 @@ class Hardware:
                 self.close()
                 raise
         try:
+            self.write_guard()
             (self.path / 'multi_intensity').write_text(' '.join(map(str, colors)))
+            self.write_guard()
             (self.path / 'brightness').write_text(str(brightness))
             actual = self.state()
             if actual['device'] != before['device'] or actual['colors'] != colors or actual['brightness'] != brightness:
@@ -294,7 +299,9 @@ class Hardware:
             # Same kernel device only; never restore across disconnect/rebind.
             with contextlib.suppress(Exception):
                 if self.state()['device'] == before['device']:
+                    self.write_guard()
                     (self.path / 'multi_intensity').write_text(' '.join(map(str, before['colors'])))
+                    self.write_guard()
                     (self.path / 'brightness').write_text(str(before['brightness']))
             raise
         return actual
@@ -307,11 +314,13 @@ class Hardware:
             raise RGBError('El kernel no ofrece este ajuste de suspensión.')
         path = self.path / 'sleep_animation'
         try:
+            self.write_guard()
             path.write_text('1' if enabled else '0')
             if read(path) != ('1' if enabled else '0'):
                 raise RGBError('El controlador no confirmó la animación de suspensión.')
         except Exception:
-            with contextlib.suppress(OSError):
+            with contextlib.suppress(Exception):
+                self.write_guard()
                 path.write_text('1' if state['sleep'] else '0')
             raise
 
@@ -379,27 +388,37 @@ class RGBLock:
 
 
 class Manager:
+    CANDIDATE = 'session-scope-v2'
+
     def __init__(self, settings, hardware=None, lock=None, competitors=writers, battery=battery_level,
                  clock=time.monotonic, logger=None, *, recovery_delay=10., stable_time=2.,
-                 wait_limit=60., poll=.5, off_gap=.25, monitor_factory=None):
+                 wait_limit=60., poll=.5, off_gap=.25, monitor_factory=None,
+                 offset=None, awake=None, frozen=None):
         from .io_process import HardwareProcess, SimulatedIO
+        from .session_io import suspend_offset, session_awake, session_frozen
         self.hw = hardware
         self.lock = lock or RGBLock()
         self.io = SimulatedIO(hardware) if hardware is not None else HardwareProcess(self.lock)
         self.settings = Settings(settings / 'settings.json')
-        self.startup_task = self.recovery_task = self.power_monitor = None
         self.logger = logger or logging.getLogger('ally-rgb')
         self.competitors, self.battery, self.clock = competitors, battery, clock
-        self.monitor_factory = monitor_factory
-        self.recovery_delay, self.stable_time = recovery_delay, stable_time
-        self.wait_limit, self.poll, self.off_gap = wait_limit, poll, off_gap
-        self.frontend_seen = float('-inf')
-        self.require_frontend = hardware is None
+        self.offset = offset or suspend_offset
+        self.baseline = self.offset()
+        self.frozen = frozen or (session_frozen if hardware is None else lambda:False)
+        async def simulated_awake(): return True
+        self.awake = awake or (session_awake if hardware is None else simulated_awake)
+        self.recovery_delay, self.wait_limit = recovery_delay, wait_limit
+        self.frontend_seen = None
         self.guard = asyncio.Lock()
         self.target = self.task = None
+        self.pending = None
+        self.startup_task = self.recovery_task = self.power_monitor = None
         self.paused = self.sleeping = self.closing = self.disarmed = False
         self.generation = 0
-        self.last_frame = self.last_actual = None
+        self.last_frame = None
+        self.last_actual = hardware.state() if hardware is not None else None
+        # VFS presence only. Never read LED attributes from status/heartbeat.
+        self.supported = hardware is not None or LED.is_dir()
         self.error = ''
         self.apply_error = None
         self.started = [0.] * 4
@@ -409,226 +428,237 @@ class Manager:
         self.seconds_left = None
         self.editor_zone = self.settings.config['zone'] if self.settings.config else 'all'
 
-    def frontend_ready(self):
-        self.frontend_seen = self.clock()
-        return dict(phase=self.phase, seconds=self.seconds_left)
-
     async def start(self):
-        await self.sync_monitor()
-        self.startup_task = asyncio.create_task(self.restore_startup())
+        self.arm('startup')
 
     async def sync_monitor(self):
-        config = self.target or self.settings.config
-        needed = not self.closing and bool(config and (config['resume'] or self.lock.file is not None))
-        if needed and self.power_monitor is None and self.monitor_factory:
-            self.power_monitor = self.monitor_factory(self.power_event, logger=self.logger)
-            self.power_monitor.start()
-        elif not needed and self.power_monitor is not None:
-            monitor, self.power_monitor = self.power_monitor, None
-            await monitor.close()
+        # Deliberately no logind subscriptions, clock watchers or timers.
+        return
 
     def cancel_pending(self):
         self.generation += 1
-        for task in (self.startup_task, self.recovery_task):
-            if task and task is not asyncio.current_task():
-                task.cancel()
-        self.startup_task = self.recovery_task = None
+        self.pending = None
         self.phase, self.seconds_left = 'idle', None
+        task, self.startup_task = self.startup_task, None
+        if task and task is not asyncio.current_task(): task.cancel()
 
-    async def cancel_startup(self):
-        self.cancel_pending()
+    async def cancel_startup(self): self.cancel_pending()
+    async def cancel_recovery(self): self.cancel_pending()
 
-    async def cancel_recovery(self):
+    def arm(self, source):
+        config = self.target or self.settings.config
+        if self.closing or self.disarmed or not config or not config['resume']:
+            return
         self.cancel_pending()
+        self.pending = dict(generation=self.generation, source=source, end=None,
+                            expires=self.clock()+self.wait_limit, last=None)
+        self.phase = 'waiting'
+        self.logger.info('RGB candidate=%s: %s armed; waiting for session pulses, no RGB polling.', self.CANDIDATE, source)
 
     async def restore_startup(self):
-        try:
-            task = await self.request_resume(source='startup')
-            if task:
-                await task
-        finally:
-            if self.startup_task is asyncio.current_task():
-                self.startup_task = None
+        self.arm('startup')
+        if self.hw is not None:
+            await self.frontend_ready()  # Simulated test clock only; production waits for Steam.
 
-    def ready(self):
-        return (not self.sleeping and not self.closing
-                and (self.power_monitor is None or self.power_monitor.ready)
-                and (not self.require_frontend or self.clock() - self.frontend_seen < 6))
-
-    def valid(self, generation):
-        return generation == self.generation and not self.sleeping and not self.closing and not self.disarmed
+    async def frontend_ready(self):
+        if self.frozen():
+            if self.pending:
+                self.pending['end'], self.pending['last'] = None, None
+                self.phase, self.seconds_left = 'waiting', None
+            return dict(phase=self.phase, seconds=self.seconds_left)
+        now, offset = self.clock(), self.offset()
+        if offset - self.baseline > .25:
+            self.cancel_pending()
+            await self.stop_task()
+            await self.io.close()
+            self.lock.release()
+            self.io.suspended = False
+            self.last_frame = None
+            self.paused = self.sleeping = False
+            self.baseline = offset
+            self.arm('session-resumed')
+        self.frontend_seen = now
+        pending = self.pending
+        if not pending or self.closing:
+            return dict(phase=self.phase, seconds=self.seconds_left)
+        config = self.target or self.settings.config
+        if not config or not config['resume'] or self.disarmed:
+            self.cancel_pending()
+        elif not config['enabled'] or config['brightness'] == 0:
+            self.pending, self.phase = None, 'skipped-off'
+        elif now > pending['expires']:
+            self.pending, self.phase = None, 'skipped'
+            self.error = 'Recuperación omitida: no llegaron pulsos continuos de Steam.'
+        elif self.frozen():
+            # A pulse already queued before the freezer must not advance anything.
+            pending['end'], pending['last'] = None, None
+            self.phase = 'waiting'
+        else:
+            if pending['last'] is None or now - pending['last'] > 4:
+                pending['end'] = now + self.recovery_delay
+            pending['last'] = now
+            self.phase = 'countdown'
+            self.seconds_left = max(0, math.ceil(pending['end']-now))
+            if now >= pending['end']:
+                # Consume BEFORE awaiting anything: duplicate pulses cannot launch twice.
+                self.pending = None
+                self.seconds_left = None
+                generation = pending['generation']
+                self.phase = 'applying'
+                await self.apply(dict(config,zone=self.editor_zone),automatic=True,generation=generation)
+                if generation != self.generation:
+                    return dict(phase=self.phase,seconds=self.seconds_left)
+                if self.apply_error:
+                    self.phase = 'skipped'
+                    self.logger.warning('RGB candidate=%s: one-shot skipped: %s', self.CANDIDATE, self.error)
+                elif generation == self.generation:
+                    self.phase = 'restored'
+                    self.logger.info('RGB candidate=%s: profile restored ONCE; no off/on cycle; session scope=%s', self.CANDIDATE, getattr(self.io,'last_scope',None))
+        return dict(phase=self.phase, seconds=self.seconds_left)
 
     async def state(self):
-        error = self.error
+        # Cache only: a 2 s UI poll must never create helpers or access LED sysfs/HID.
         actual = self.last_actual
-        if not self.sleeping and not self.closing:
-            try:
-                actual = self.last_actual = await self.io.state()
-            except (OSError, ValueError, RuntimeError) as exc:
-                actual, error = None, str(exc)
         if actual:
-            actual = dict(actual, hex=['#%06x' % c for c in actual['colors']])
+            actual = dict(actual,hex=['#%06x'%c for c in actual['colors']])
         conflicts = await asyncio.to_thread(self.competitors)
-        return dict(version='1.2', supported=actual is not None, actual=actual,
-                    active=self.lock.file is not None, paused=self.paused,
-                    config=self.target or self.settings.config, editor_zone=self.editor_zone,
-                    conflicts=conflicts, error=error, warning=self.settings.warning, battery=self.battery(),
-                    recovery=dict(pending=self.recovery_task is not None, phase=self.phase,
-                                  seconds=self.seconds_left, delay=self.recovery_delay,
-                                  logind=self.power_monitor.logind if self.power_monitor else 'disabled',
-                                  suspend_clock=self.power_monitor is not None,
-                                  isolated_io=True, io_blocked=self.io.blocked, loader_eof_guard=self.loader_eof_guard))
+        return dict(version='1.2', supported=self.supported, actual=actual,
+                    active=self.lock.file is not None, applied=self.target is not None,
+                    paused=self.paused,config=self.target or self.settings.config,
+                    editor_zone=self.editor_zone,conflicts=conflicts,error=self.error,
+                    warning=self.settings.warning,battery=self.battery(),
+                    recovery=dict(pending=self.pending is not None,phase=self.phase,
+                                  seconds=self.seconds_left,delay=self.recovery_delay,
+                                  candidate=self.CANDIDATE,logind='on-demand-only',suspend_clock=False,
+                                  background_rgb_poll=False,session_scoped=True,
+                                  scope=getattr(self.io,'last_scope',None),isolated_io=True,
+                                  io_blocked=self.io.blocked,loader_eof_guard=self.loader_eof_guard))
 
     async def gate(self):
         others = await asyncio.to_thread(self.competitors)
         if others:
-            raise RGBError('Desactiva el otro gestor RGB antes de aplicar: ' + ', '.join(others))
-        if self.sleeping or self.closing:
-            raise RGBError('RGB en suspensión; no se escribe hardware.')
-        return await self.io.state()
+            raise RGBError('Desactiva el otro gestor RGB antes de aplicar: '+', '.join(others))
+        if self.sleeping or self.closing or self.frozen() or not await self.awake():
+            raise RGBError('Sesión no preparada; se omite E/S RGB.')
 
     async def stop_task(self):
         task, self.task = self.task, None
         if task and task is not asyncio.current_task():
             task.cancel()
-            await asyncio.wait([task], timeout=.2)
+            await asyncio.wait([task],timeout=.2)
 
-    def save_settings(self, config):
-        try:
-            self.settings.save(config)
+    def save_settings(self,config):
+        try: self.settings.save(config)
         except Exception as exc:
-            self.settings.warning = 'No se pudo guardar para el próximo encendido: ' + str(exc)
+            self.settings.warning = 'No se pudo guardar para el próximo encendido: '+str(exc)
 
-    async def select_zone(self, zone):
+    async def select_zone(self,zone):
         async with self.guard:
-            if not isinstance(zone, str) or zone not in ZONES:
+            if not isinstance(zone,str) or zone not in ZONES:
                 self.error = 'Selección de zonas no válida.'
             else:
                 self.editor_zone = zone
                 if self.target:
-                    self.target = dict(self.target, zone=zone)
+                    self.target = dict(self.target,zone=zone)
                     self.save_settings(self.target)
                 elif self.settings.config:
-                    self.save_settings(dict(self.settings.config, zone=zone))
+                    self.save_settings(dict(self.settings.config,zone=zone))
                 self.error = ''
         return await self.state()
 
-    async def apply(self, config, *, automatic=False, cycle=False, generation=None, identity=None):
+    @staticmethod
+    def dynamic(config):
+        return config['enabled'] and any(z['effect']!='solid' for z in config['zones'])
+
+    async def apply(self,config,*,automatic=False,generation=None,**unused):
         if not automatic:
-            was_applying = self.phase == 'applying'
             self.cancel_pending()
-            # Stop an in-flight automatic helper before a manual edit can win.
-            if was_applying:
-                self.io.abort()
-                await self.io.close()
             self.disarmed = False
+        enable_after = False
         async with self.guard:
             self.apply_error = None
             try:
                 config = validate(config)
-                if self.sleeping or self.closing:
-                    raise RGBError('RGB en suspensión; no se escribe hardware.')
-                self.io.suspended = False
-                old = self.target
-                saved = self.settings.config
-                preference_only = not automatic and saved and all(config[k] == saved[k] for k in ('enabled', 'brightness', 'zones')) and config != saved
-                same_lighting = old and all(config[k] == old[k] for k in ('enabled', 'brightness', 'zones'))
-                if preference_only and self.lock.file is None:
-                    if old is not None:
-                        self.target = config
-                    if not config['resume']:
-                        self.paused = False
-                elif same_lighting and self.task is not None and not self.paused and not cycle:
-                    self.target = config
+                old, saved = self.target, self.settings.config
+                same = old and all(config[k]==old[k] for k in ('enabled','brightness','zones'))
+                preference_only = not automatic and saved and config!=saved and all(config[k]==saved[k] for k in ('enabled','brightness','zones'))
+                if preference_only or (same and not self.paused and not automatic):
+                    if self.target is not None: self.target = config
                 else:
-                    actual = await self.gate()
-                    if automatic and (not self.valid(generation) or not self.ready()):
+                    await self.gate()
+                    if automatic and (generation!=self.generation or self.disarmed or self.offset()-self.baseline>.25):
                         raise RGBError('Recuperación cancelada antes de escribir.')
-                    if identity is not None and self.device_identity(actual) != identity:
-                        raise RGBError('El dispositivo RGB cambió durante la espera; se omite este ciclo.')
+                    self.io.suspended = False
                     self.lock.acquire()
                     now = self.clock()
-                    started = [now if old is None or config['zones'][i] != old['zones'][i]
-                               else self.started[i] for i in range(4)]
-                    colors, brightness = frame(config, [now - t for t in started], self.battery())
-                    if cycle:
-                        self.phase = 'applying'
-                        await self.io.write(colors, 0)
-                        await asyncio.sleep(self.off_gap)
-                        if not self.valid(generation) or not self.ready():
-                            raise RGBError('Recuperación cancelada; no se fuerza encendido.')
-                        await self.gate()
-                    actual = await self.io.write(colors, brightness)
+                    started = [now if old is None or config['zones'][i]!=old['zones'][i] else self.started[i] for i in range(4)]
+                    colors,brightness = frame(config,[now-t for t in started],self.battery())
+                    # Fresh descriptor sends desired brightness + colors; zero/off is unnecessary.
+                    actual = await self.io.write(colors,brightness)
                     self.last_actual = actual
-                    self.last_frame = (actual['colors'], actual['brightness'])
-                    self.target, self.started = config, started
+                    self.last_frame = (actual['colors'],actual['brightness'])
+                    self.target,self.started = config,started
                     self.paused = False
                     self.changed.set()
-                    if self.task is None:
-                        self.task = asyncio.create_task(self.animate())
-                    # Static frames need no persistent privileged I/O helper.
-                    if not any(z['effect'] not in ('solid', 'battery') for z in config['zones']):
+                    if self.dynamic(config):
+                        if self.task is None: self.task = asyncio.create_task(self.animate())
+                    else:
+                        await self.stop_task()
                         await self.io.close(clear=False)
+                        self.lock.release()  # A static profile needs no permanent ownership/worker.
                 self.editor_zone = config['zone']
                 self.error = ''
                 if not automatic:
+                    enable_after = bool(saved and not saved['resume'] and config['resume'])
                     self.save_settings(config)
             except asyncio.CancelledError:
-                self.lock.release()
                 await self.io.close()
+                self.lock.release()
                 raise
             except Exception as exc:
-                self.apply_error, self.error = exc, str(exc)
+                self.apply_error,self.error = exc,str(exc)
                 if self.task is None:
-                    self.lock.release()
                     await self.io.close()
-                    self.target = None
-                    self.paused = False
-        if not automatic:
-            await self.sync_monitor()
-            if not self.apply_error and preference_only and config['resume'] and not saved['resume']:
-                await self.request_resume(source='enabled')
+                    self.lock.release()
+        if enable_after and not self.apply_error:
+            self.arm('enabled')
         return await self.state()
 
     async def animate(self):
+        from .session_io import SessionBoundary
         checked = 0
         try:
-            while True:
-                config = self.target
-                if config is None or self.sleeping or self.paused:
-                    return
-                animated = config['enabled'] and any(z['effect'] not in ('solid', 'battery') for z in config['zones'])
+            while self.target and self.dynamic(self.target):
                 self.changed.clear()
                 try:
-                    await asyncio.wait_for(self.changed.wait(), .05 if animated else 1)
-                except asyncio.TimeoutError:
-                    pass
+                    await asyncio.wait_for(self.changed.wait(),1 if all(z['effect'] in ('solid','battery') for z in self.target['zones']) else .05)
+                except asyncio.TimeoutError: pass
+                if self.frozen() or self.offset()-self.baseline>.25:
+                    self.paused,self.phase = True,'awaiting-session'
+                    return  # Do NOT kill/close an I/O helper at PrepareForSleep.
                 async with self.guard:
                     config = self.target
-                    if config is None or self.sleeping or self.paused:
-                        return
+                    if config is None or not self.dynamic(config): return
                     now = self.clock()
-                    if now - checked >= 1:
-                        observed = await self.gate()
-                        if self.last_frame and (observed['colors'], observed['brightness']) != self.last_frame:
-                            raise RGBError('Otro controlador cambió las luces; ALLY RGB ha cedido el control.')
+                    if now-checked>=1:
+                        others = await asyncio.to_thread(self.competitors)
+                        if others: raise RGBError('Otro gestor RGB activo: '+', '.join(others))
                         checked = now
-                    colors, brightness = frame(config, [now - t for t in self.started], self.battery())
-                    if (colors, brightness) != self.last_frame:
-                        self.last_actual = await self.io.write(colors, brightness)
-                        self.last_frame = (colors, brightness)
-                    if not animated:
-                        await self.io.close(clear=False)
+                    colors,brightness = frame(config,[now-t for t in self.started],self.battery())
+                    if (colors,brightness)!=self.last_frame:
+                        self.last_actual = await self.io.write(colors,brightness)
+                        self.last_frame = (colors,brightness)
         except asyncio.CancelledError:
             raise
+        except SessionBoundary:
+            self.paused,self.phase = True,'awaiting-session'
         except Exception as exc:
             self.error = str(exc)
-            self.lock.release()
-            await self.io.close()
             self.target = None
+            await self.io.close()
+            self.lock.release()
         finally:
-            if self.task is asyncio.current_task():
-                self.task = None
+            if self.task is asyncio.current_task(): self.task = None
 
     async def release(self):
         self.disarmed = True
@@ -638,158 +668,62 @@ class Manager:
         self.lock.release()
         self.target = self.last_frame = None
         self.paused = False
-        await self.sync_monitor()
         return await self.state()
 
     async def pause(self):
-        await self.power_event(True)
+        self.cancel_pending()
+        await self.stop_task()
+        self.paused = self.target is not None
+        self.sleeping = True
+        # Manual API/test pause, not registered as a sleep callback.
+        if not self.frozen(): await self.io.close()
+        self.lock.release()
         return await self.state()
+
+    async def request_resume(self,source='wake'):
+        self.sleeping = False
+        await self.stop_task()
+        await self.io.close()
+        self.lock.release()
+        self.io.suspended = False
+        self.last_frame = None
+        self.baseline = self.offset()
+        self.arm(source)
+        return None
 
     async def resume(self):
-        self.sleeping = False
-        self.io.suspended = False
-        task = await self.request_resume()
-        if task:
-            await task
+        await self.request_resume()
+        if self.hw is not None: await self.frontend_ready()
         return await self.state()
 
-    async def power_event(self, sleeping):
-        # Intentionally no await of hardware, locks or process joins here.
-        # Cancellation/kill just requests teardown; the I/O task reaps boundedly.
+    async def power_event(self,sleeping):
+        # Compatibility for tests/manual calls only. Production subscribes to nothing.
         if sleeping:
             self.cancel_pending()
             self.sleeping = True
-            self.frontend_seen = float('-inf')
             self.paused = self.target is not None
-            if self.task:
-                self.task.cancel()
-                self.task = None
-            self.io.abort()
-            self.lock.release()
-            self.last_frame = None
         else:
-            self.sleeping = False
-            self.io.suspended = False
-            if not self.recovery_task:
-                self.frontend_seen = float('-inf')
-                await self.request_resume()
-
-    async def request_resume(self, source='wake'):
-        if self.recovery_task:
-            return self.recovery_task
-        config = self.target or self.settings.config
-        if self.closing or self.disarmed or not config or not config['resume']:
-            return None
-        # Duplicate wake notifications must not queue a second application.
-        self.cancel_pending()
-        if self.task:
-            self.task.cancel()
-            self.task = None
-        self.io.abort()
-        self.io.suspended = False
-        self.lock.release()
-        self.last_frame = None
-        self.paused = True
-        generation = self.generation
-        self.recovery_task = asyncio.create_task(self.recover(generation, source))
-        return self.recovery_task
-
-    @staticmethod
-    def device_identity(actual):
-        return actual['device'], actual['backend'], actual.get('identity')
-
-    async def recover(self, generation, source):
-        try:
-            await self.io.close()
-            config = self.target or self.settings.config
-            if not config or not config['enabled'] or config['brightness'] == 0:
-                self.phase = 'skipped'
-                self.paused = False
-                return
-            deadline = self.clock() + self.wait_limit
-            identity, stable_since = None, None
-            self.phase = 'waiting'
-            self.logger.info('RGB %s: esperando Steam/logind/dispositivo; después %gs.', source, self.recovery_delay)
-            while self.valid(generation) and self.clock() <= deadline:
-                if await asyncio.to_thread(self.competitors):
-                    raise RGBError('Recuperación cancelada: otro gestor RGB está activo.')
-                if self.ready():
-                    try:
-                        actual = await self.io.state()  # Metadata/sysfs only; never HID ioctls.
-                    except (OSError, RuntimeError, ValueError):
-                        actual = None
-                    if actual and actual['trigger'] != 'none':
-                        raise RGBError('Recuperación cancelada: otro disparador controla las luces.')
-                    current = self.device_identity(actual) if actual else None
-                    if current != identity or current is None:
-                        identity, stable_since = current, self.clock() if current else None
-                    if identity and stable_since is not None and self.clock() - stable_since >= self.stable_time:
-                        break
-                else:
-                    identity = stable_since = None
-                await asyncio.sleep(self.poll)
-            else:
-                if self.valid(generation):
-                    raise RGBError('Recuperación omitida: preparación no confirmada en 60 s.')
-                return
-            self.phase = 'countdown'
-            end = self.clock() + self.recovery_delay
-            while self.clock() < end:
-                self.seconds_left = max(0, math.ceil(end - self.clock()))
-                await asyncio.sleep(min(self.poll, max(0, end - self.clock())))
-                if not self.valid(generation) or not self.ready():
-                    raise RGBError('Recuperación cancelada: la sesión dejó de estar preparada.')
-                actual = await self.io.state()
-                if self.device_identity(actual) != identity:
-                    raise RGBError('Recuperación cancelada: cambió el dispositivo RGB.')
-            if not self.valid(generation):
-                return
-            config = self.target or self.settings.config
-            await self.apply(dict(config, zone=self.editor_zone), automatic=True, cycle=True,
-                             generation=generation, identity=identity)
-            if self.apply_error:
-                raise self.apply_error
-            self.phase = 'restored'
-            self.logger.info('RGB: restauración única completada, sin guardar ni reintentar.')
-        except asyncio.CancelledError:
-            self.logger.info('RGB: recuperación cancelada.')
-            raise
-        except Exception as exc:
-            self.error = str(exc)
-            self.phase = 'skipped'
-            self.lock.release()
-            await self.io.close()
-            self.logger.warning('RGB: se omite este ciclo: %s', exc)
-        finally:
-            if self.recovery_task is asyncio.current_task():
-                self.recovery_task = None
-                self.seconds_left = None
+            await self.request_resume()
 
     async def shutdown(self):
         self.closing = True
         self.cancel_pending()
-        self.io.abort()
         await self.stop_task()
-        if self.power_monitor:
-            monitor, self.power_monitor = self.power_monitor, None
-            await monitor.close()
         await self.io.close()
         self.lock.release()
         self.target = None
 
-    async def set_sleep(self, enabled):
+    async def set_sleep(self,enabled):
         self.cancel_pending()
         async with self.guard:
-            acquired = self.lock.file is not None
             try:
                 await self.gate()
                 self.lock.acquire()
                 await self.io.set_sleep(enabled)
                 self.error = ''
-            except Exception as exc:
-                self.error = str(exc)
+            except Exception as exc: self.error = str(exc)
             finally:
-                if not acquired:
+                if self.task is None:
                     await self.io.close()
                     self.lock.release()
         return await self.state()

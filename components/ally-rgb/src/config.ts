@@ -2,6 +2,8 @@ export const zones = [
   { data: 'all', label: 'Todas las zonas', indexes: [0, 1, 2, 3] },
   { data: 'pair12', label: 'Zonas 1 y 2', indexes: [0, 1] },
   { data: 'pair34', label: 'Zonas 3 y 4', indexes: [2, 3] },
+  { data: 'pair23', label: 'Zonas 2 y 3', indexes: [1, 2] },
+  { data: 'pair14', label: 'Zonas 1 y 4', indexes: [0, 3] },
   { data: 'zone1', label: 'Zona 1', indexes: [0] },
   { data: 'zone2', label: 'Zona 2', indexes: [1] },
   { data: 'zone3', label: 'Zona 3', indexes: [2] },
@@ -19,6 +21,11 @@ export function indexes(zone: Zone): readonly number[] {
 }
 export function channelValue(hex: string, shift: number) {
   return (parseInt(hex.slice(1), 16) >> shift) & 255;
+}
+// Presentation only: retain all 256 channel levels and the existing speed range.
+export function percentLabel(label: string, value: number, min: number, max: number) {
+  const percent = Math.round(100 * (value - min) / (max - min));
+  return `${label} · ${Math.max(0, Math.min(100, percent))} %`;
 }
 function channelHex(hex: string, shift: number, value: number) {
   const color = (parseInt(hex.slice(1), 16) & ~(255 << shift)) | (Math.round(value) << shift);

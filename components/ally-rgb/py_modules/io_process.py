@@ -3,6 +3,7 @@ import asyncio
 import contextlib
 import json
 from pathlib import Path
+from .session_io import enroll_session_scope, session_frozen, suspend_offset, SessionBoundary
 
 
 async def reap(process, timeout=.15):
@@ -21,11 +22,13 @@ async def reap(process, timeout=.15):
 
 
 class HardwareProcess:
-    def __init__(self, lock, timeout=2., executable='/usr/bin/python3', worker=None):
+    def __init__(self, lock, timeout=2., executable='/usr/bin/python3', worker=None, scope_enroller=None):
         self.lock, self.timeout = lock, timeout
         self.executable = executable
         self.worker = worker or Path(__file__).with_name('io_worker.py')
         self.process = None
+        self.scope_enroller = scope_enroller or (enroll_session_scope if worker is None else None)
+        self.last_scope = None
         self.guard = asyncio.Lock()
         self.cache = None
         self.suspended = False
@@ -40,21 +43,32 @@ class HardwareProcess:
 
     async def close(self, clear=True):
         process = self.process
+        if process and process.returncode is None and self.last_scope and session_frozen():
+            # Let the freezer own this transition. Reap only after session resumes.
+            self.blocked = True
+            if clear:
+                self.cache = None
+            return
         if not await reap(process):
             self.blocked = True
         elif self.process is process:
             self.process = None
+            self.blocked = False
         if clear:
             self.cache = None
 
     async def _call(self, action, **values):
+        epoch = suspend_offset()
         async with self.guard:
             if self.suspended:
                 raise RuntimeError('RGB en suspensión; operación omitida.')
+            if self.blocked and self.process and self.process.returncode is not None:
+                self.process = None
+                self.blocked = False
             if self.blocked:
                 raise RuntimeError('RGB detenido tras un helper que no terminó; no se reintenta.')
             process = self.process
-            read_only = action == 'state' and (process is None or process.returncode is not None)
+            read_only = action in ('state', 'session_probe') and (process is None or process.returncode is not None)
             try:
                 if process is None or process.returncode is not None:
                     args = [self.executable, '-I', str(self.worker)]
@@ -68,16 +82,22 @@ class HardwareProcess:
                         stderr=asyncio.subprocess.DEVNULL, pass_fds=descriptors,
                         limit=16384, env={'PATH':'/usr/bin:/usr/sbin','LC_ALL':'C.UTF-8'})
                     self.process = process
+                    if self.scope_enroller:
+                        self.last_scope = await self.scope_enroller(process)
                     if self.suspended:
                         raise RuntimeError('RGB suspendido durante la apertura; se cancela.')
-                payload = dict(action=action, **values)
+                if self.last_scope and (session_frozen() or suspend_offset()-epoch>.25):
+                    raise SessionBoundary('La sesión cambió antes de enviar el comando RGB.')
+                payload = dict(action=action, epoch=epoch, **values)
                 if self.cache and self.cache.get('backend') == 'hid-rgb':
                     payload['cache'] = self.cache
                 process.stdin.write((json.dumps(payload)+'\n').encode())
                 await asyncio.wait_for(process.stdin.drain(), self.timeout)
-                line = await asyncio.wait_for(process.stdout.readline(), self.timeout)
+                line = await self.read_reply(process)
                 result = json.loads(line)
                 if 'error' in result:
+                    if result.get('kind') == 'SessionBoundary':
+                        raise SessionBoundary(result['error'])
                     raise RuntimeError(result['error'])
                 self.cache = result['actual']
                 if read_only:
@@ -86,6 +106,23 @@ class HardwareProcess:
             except BaseException:
                 await self.close()
                 raise
+
+    async def read_reply(self, process):
+        task = asyncio.create_task(process.stdout.readline())
+        try:
+            while True:
+                done, _ = await asyncio.wait([task], timeout=self.timeout)
+                if done:
+                    return task.result()
+                if self.last_scope and session_frozen():
+                    continue  # The OS intentionally paused our child; do not kill at the PM boundary.
+                raise asyncio.TimeoutError()
+        finally:
+            if not task.done():
+                task.cancel()
+
+    async def session_probe(self):
+        return await self._call('session_probe')
 
     async def state(self):
         return await self._call('state')

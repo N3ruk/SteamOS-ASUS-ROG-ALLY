@@ -6,11 +6,13 @@ no controla TDP, SMT, ventiladores, carga ni el MCU. Ally X no está validada en
 ## Funciones
 
 - Cuatro zonas RGB con efectos, colores y velocidades **independientes y simultáneos**.
-- El selector cambia únicamente las zonas que editas: todas, parejas o una a una; no detiene otras zonas.
+- El selector cambia únicamente las zonas que editas: todas, parejas **1 y 2**, **3 y 4**, **2 y 3**, **1 y 4**, o una a una; no detiene otras zonas.
 - Brillo 0–100%, encendido/apagado; el brillo es común a los cuatro LED porque el kernel expone un único ajuste.
 - Color fijo, respiración, arcoíris, onda, transición y color según la batería interna de la Ally.
 - El porcentaje y el efecto Batería excluyen mandos, ratones y otros periféricos. Si no se puede leer la interna, se indica «batería sin datos», sin adivinar un porcentaje.
 - Color manual con deslizadores R/G/B; sin colores rápidos, perfiles ni botones adicionales.
+- Porcentaje visible 0–100 % junto a cada canal RGB, también en ambos colores de Transición. Se conservan los 256 niveles de cada canal; el porcentaje se redondea solo para mostrarlo.
+- Velocidad con porcentaje visible: 0 % es el mínimo del efecto y 100 % el máximo. No se modifica la velocidad guardada ni su rango interno 10–100.
 - Transición con **Color inicial** y **Color final** independientes y velocidad regulable.
 - **Recuperar al despertar/encender** guarda automáticamente la última configuración aplicada,
   incluyendo los cuatro efectos, sus velocidades y colores, brillo y encendido/apagado.
@@ -32,18 +34,27 @@ Sin ajustes guardados, con la opción desactivada o con ajustes corruptos, no es
 Al desactivar la opción se conserva la configuración para mostrarla en el panel, pero no
 se aplica automáticamente al encender ni al despertar. Cambiar controles sí aplica sus valores.
 
-La recuperación se ejecuta en el backend, sin depender de los avisos internos de
-suspensión de Steam ni de abrir QAM. Antes de actuar, espera a logind despierto y
-sin apagado, a una confirmación ligera de Steam y a una identidad RGB estable 2 s.
-Después cuenta 10 s despierto, baja el brillo a cero durante 250 ms y restaura el
-perfil vigente una vez. No reinicia USB ni guarda el apagado temporal.
-Si no confirma preparación en 60 s, o falla un comando, omite ese ciclo sin
-reintentar escrituras. Una nueva suspensión, cambio de identidad, edición manual
-o descarga cancela lo pendiente. Un perfil apagado o con brillo cero no se enciende.
-La observación usa D-Bus tipado y BOOTTIME/MONOTONIC; la hora civil no interviene.
-No consulta ni escribe HID desde el aviso previo a suspensión. No añade servicios,
-inhibidores ni hooks del sistema. El control manual conserva un observador de
-seguridad mientras está activo aunque la recuperación automática esté desactivada.
+La recuperación se decide en el backend desde pulsos ligeros de Steam, también
+con QAM cerrado. Tras un arranque o una suspensión real (diferencia entre
+BOOTTIME y MONOTONIC), espera 10 segundos de pulsos continuos antes de restaurar
+una sola vez el perfil vigente. Una pausa de más de 4 s reinicia la cuenta;
+sin continuidad en 60 s se omite el intento. No usa hora civil ni hooks internos
+Steam. No fuerza un apagado/encendido de los LED.
+
+La candidata local `session-scope-v2` elimina el observador logind, el detector
+periódico de suspensión y las consultas RGB de los perfiles fijos. El estado del
+panel es caché, no una nueva lectura del dispositivo. Los perfiles fijos se
+aplican una vez y liberan trabajador/bloqueo. Solo las animaciones necesitan un
+trabajador mientras funcionan.
+
+Antes de **cualquier** petición al auxiliar RGB, systemd lo incorpora a un scope
+transitorio dentro de `user.slice`, que SteamOS congela durante la suspensión.
+No se instala ningún servicio, hook de sueño, inhibidor ni regla de permisos.
+Se verifica el cgroup desde ambos procesos; si falla, no se toca el RGB.
+Cada operación/informe comprueba el ciclo de suspensión para rechazar comandos
+antiguos. El backend consulta logind solo al aplicar, nunca se suscribe a él.
+La edición manual, una nueva suspensión o la descarga cancelan lo pendiente.
+Un perfil apagado o con brillo cero no se enciende automáticamente.
 
 Las zonas se numeran 1–4 porque su posición física exacta queda pendiente de confirmar.
 El selector **Zonas** solo cambia las zonas que vas a editar; no aplica colores ni reinicia
@@ -85,12 +96,12 @@ la opción está activada; no se instala ningún servicio de arranque adicional.
 - Bloqueo `/run/ally-rgb.lock`; última configuración en `settings.json` del directorio de ajustes de Decky.
 - Escritura atómica y fsync de ajustes; los perfiles antiguos no se borran ni se aplican.
 - Comprobación de valores, readback del driver y rollback parcial mientras sea el mismo dispositivo.
-- Detección de cambios externos, ausencia del dispositivo y cierre sin reimposición continua.
+- Detección de cambios externos al escribir, ausencia del dispositivo y cierre sin reimposición continua; sin vigilancia RGB en reposo.
 - El readback del driver no prueba el color físico de los LED ni garantiza persistencia tras reiniciar.
 
 La E/S RGB utiliza biblioteca estándar, incluido `fcntl`, en un auxiliar aislado.
-La observación D-Bus emplea dbus-next 0.2.3 (MIT), vendorizado, fuera del Python
-congelado de Decky. No instala paquetes, importa `termios`/pyserial ni bibliotecas
+La consulta puntual D-Bus usa el busctl de SteamOS; no ejecuta un observador.
+El código legado y la dependencia vendorizada se conservan sin activarse. No instala paquetes, importa `termios`/pyserial ni bibliotecas
 HID externas, ni realiza conexiones de red. No sincroniza pantalla/audio.
 
 ## Construir y verificar
@@ -114,44 +125,37 @@ Las pruebas usan hogares y dispositivos temporales, nunca luces/TDP/SMT reales.
 Código de este plugin bajo MIT. Ver LICENSE y THIRD-PARTY.md. Los protocolos y las
 fuentes abiertas se acreditan sin atribuirse la autoría de los proyectos de referencia.
 
-## Recuperación diferida 1.2 (2026-10-30)
+## Arquitectura de recuperación 1.2
 
-La recuperación de arranque y reanudación espera a logind, a una confirmación
-ligera de Steam (también con QAM cerrado) y a una identidad RGB estable 2 s.
-Después cuenta 10 s despierto y baja el brillo a cero durante 250 ms antes de
-restaurar una vez el perfil vigente. No reinicia USB ni guarda el apagado temporal.
-Si no confirma preparación en 60 s, o falla un comando, omite ese ciclo sin
-reintentar escrituras. Un perfil apagado o con brillo cero no se enciende.
+`session-scope-v2` sustituye el mecanismo anterior, que no resolvió los bloqueos
+observados en Gaming. No se atribuye una causa de kernel demostrada: el registro
+fallido termina al entrar en s2idle, sin tramo de reanudación. La asociación con
+la función procede de la prueba A/B del usuario.
 
-Una nueva suspensión, desconexión, cambio de identidad, edición manual o descarga
-cancela lo pendiente. El aviso previo a suspensión únicamente invalida tareas y
-solicita terminar el auxiliar: no consulta ni escribe HID ni espera procesos. No
-hay inhibidores, hooks instalados en el sistema ni servicios adicionales.
+La E/S real usa `/usr/bin/python3 -I`, protocolo cerrado y flock heredado.
+Los auxiliares no reciben comandos antes de verificar su scope. Tras un timeout
+se intenta cerrar de forma acotada; si el auxiliar no termina, conserva el
+bloqueo y no se crea otro encima. Durante el congelado no se mata el auxiliar ni
+se interpreta una pausa del sistema como timeout. Ningún timeout puede resolver
+por sí mismo una llamada de kernel no interrumpible.
 
-Todo acceso real RGB se realiza en `/usr/bin/python3 -I` mediante un auxiliar de
-protocolo fijo; cada RPC tiene timeout y el cierre espera como máximo 150 ms por
-auxiliar. La lectura sin control usa un auxiliar que rechaza escrituras. El
-auxiliar escritor hereda el flock: si el kernel lo deja bloqueado, conserva el
-bloqueo y no se crean sustitutos. Un timeout no puede garantizar interrumpir una
-llamada no interrumpible del kernel. Si falla después del apagado temporal, los
-LED pueden quedar apagados hasta una intervención posterior.
+La aceptación HID confirma el transporte, no el color físico. El estado mostrado
+es la última aplicación conocida; un cambio externo en reposo puede no reflejarse
+hasta una nueva operación. No hay sondeo para imponer el perfil periódicamente.
 
-Para efectos estáticos los auxiliares de hardware son cortos. Para animaciones
-se reutiliza un único auxiliar mientras hay actividad para evitar lanzar veinte
-procesos por segundo. Cerrar QAM no detiene los efectos. Desactivar recuperación
-sin control activo detiene sus observadores; durante control manual activo se
-conserva solo la observación necesaria para detener ese control antes de dormir,
-sin autorizar ninguna restauración al despertar.
+Se han validado tres suspensiones/reanudaciones correctas en Gaming con un emulador
+en ejecución y la recuperación activada. No se presenta como prueba universal de
+compatibilidad ni como demostración de una causa concreta de kernel.
 
-La suscripción tipada logind utiliza dbus-next 0.2.3 (MIT), incluida en `vendor/`,
-y funciona fuera del Python congelado de Decky. No instala paquetes de sistema.
-El detector BOOTTIME/MONOTONIC invalida/deduplica una reanudación perdida, pero no
-inventa que logind o Steam estén preparados. La confirmación de Steam no usa sus
-hooks internos de suspensión ni depende de abrir el panel.
+También se han validado las nuevas parejas 2–3 y 1–4 y los porcentajes de color,
+transición y velocidad en la interfaz. El centralizado y el instalador individual
+incluyen este mismo plugin nativo, manteniendo la versión y el release v1.2.
 
-La aceptación HID confirma el transporte, no el color físico. Este diseño no
-identifica por sí solo la causa de bloqueos previos y requiere pruebas reales de
-suspensión/reanudación después de las pruebas simuladas.
+Referencias del diseño:
+- [systemd-suspend: congelación de user.slice](https://www.freedesktop.org/software/systemd/man/latest/systemd-suspend.service.html)
+- [Scopes transitorios](https://www.freedesktop.org/software/systemd/man/latest/systemd.scope.html)
+- [StartTransientUnit](https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.systemd1.html)
+- [SteamOS #2722: bloqueos s2idle en RC71L](https://github.com/ValveSoftware/SteamOS/issues/2722)
 
 ### Corrección local de cierre 1.2
 

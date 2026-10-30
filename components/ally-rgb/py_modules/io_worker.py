@@ -5,16 +5,29 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from py_modules.rgb import Hardware
+from py_modules.session_io import WorkerSessionGuard, suspend_offset, SessionBoundary
 
 
 def serve(read_only=False):
-    hardware = Hardware()
+    session = WorkerSessionGuard()
+    hardware = Hardware(write_guard=session.check)
     try:
         for line in sys.stdin:
             if len(line) > 8192:
                 return
             try:
                 request = json.loads(line)
+                action = request['action']
+                if action not in ('state', 'write', 'set_sleep', 'session_probe') or (read_only and action not in ('state', 'session_probe')):
+                    raise ValueError('Operación RGB no permitida.')
+                session.check()
+                if abs(suspend_offset()-request['epoch'])>.25:
+                    raise SessionBoundary('Comando de un ciclo de suspensión anterior rechazado.')
+                if action == 'session_probe':
+                    import os
+                    actual = {'pid':os.getpid(), 'scope':Path('/proc/self/cgroup').read_text().strip(), 'hardware_touched':False}
+                    print(json.dumps({'actual':actual}),flush=True)
+                    return
                 cache = request.get('cache')
                 if cache and hardware.hid_last is None:
                     if hardware.state().get('identity') != cache.get('identity'):

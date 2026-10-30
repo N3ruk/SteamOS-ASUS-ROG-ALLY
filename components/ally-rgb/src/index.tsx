@@ -2,10 +2,10 @@ import { useEffect, useRef, useState, type ComponentType, type ComponentProps } 
 import { PanelSection, PanelSectionRow, SliderField, ToggleField, DropdownItem, staticClasses } from '@decky/ui';
 import { callable, definePlugin } from '@decky/api';
 import { LatestQueue } from './queue';
-import { initial, zones, indexes, channelValue, zoneChannel, transitionChannel, zoneSettings, type Config, type Zone } from './config';
+import { initial, zones, indexes, channelValue, percentLabel, zoneChannel, transitionChannel, zoneSettings, type Config, type Zone } from './config';
 
 type State = {
-  version: string; supported: boolean; active: boolean; paused: boolean; config: Config | null;
+  version: string; supported: boolean; active: boolean; applied?: boolean; paused: boolean; config: Config | null;
   actual: { product: string; hex: string[]; brightness: number; sleep: boolean | null } | null;
   recovery?: {phase: string; seconds: number | null};
   editor_zone: Zone; conflicts: string[]; error: string; warning: string; battery: number | null;
@@ -97,7 +97,7 @@ function Content() {
     (state.recovery?.phase === 'countdown' ? `Recuperando iluminación en ${state.recovery.seconds ?? 10} s…` :
       state.recovery?.phase === 'waiting' ? 'Esperando a que la sesión y la iluminación estén preparadas…' :
       state.conflicts.length ? 'Desactiva el otro gestor RGB: ' + state.conflicts.join(', ') :
-      state.paused ? 'Pausado durante la suspensión.' : state.active ? 'ALLY RGB tiene el control.' : 'Sin control adquirido.');
+      state.paused ? 'Pausado durante la suspensión.' : state.active ? 'ALLY RGB tiene el control.' : state.applied ? 'Perfil RGB aplicado.' : 'Sin control adquirido.');
   const displayColors = state.active && state.actual ? state.actual.hex : config.zones.map(zone=>zone.color);
   return <>
     <PanelSection><Note><strong>ALLY RGB</strong> · 4 zonas
@@ -110,17 +110,17 @@ function Content() {
       <PanelSectionRow><SliderField label="Brillo" value={config.brightness} min={0} max={100} step={1} valueSuffix="%" disabled={blocked} onChange={brightness => edit({brightness:Math.round(brightness)})}/></PanelSectionRow>
       <PanelSectionRow><ControlledDropdown controlled label="Zonas" selectedOption={config.zone} rgOptions={zoneOptions} disabled={blocked} onChange={o => edit({zone:o.data as Zone},true)}/></PanelSectionRow>
       <PanelSectionRow><ControlledDropdown controlled label="Efecto" selectedOption={effect} rgOptions={[...(effect==='mixed' ? [{data:'mixed',label:'Varios efectos (conservar)'}] : []),...effects.map(([data,label]) => ({data,label}))]} disabled={blocked} onChange={o => {if(o.data!=='mixed') edit(zoneSettings(draft.current,{effect:o.data}));}}/></PanelSectionRow>
-      {effect !== 'mixed' && effect !== 'solid' && effect !== 'battery' && <PanelSectionRow><SliderField label="Velocidad" value={zoneConfig.speed} min={10} max={100} step={1} valueSuffix="%" disabled={blocked} onChange={speed => edit(zoneSettings(draft.current,{speed:Math.round(speed)}))}/></PanelSectionRow>}
+      {effect !== 'mixed' && effect !== 'solid' && effect !== 'battery' && <PanelSectionRow><SliderField label={percentLabel('Velocidad',zoneConfig.speed,10,100)} value={zoneConfig.speed} min={10} max={100} step={1} showValue={false} disabled={blocked} onChange={speed => edit(zoneSettings(draft.current,{speed:Math.round(speed)}))}/></PanelSectionRow>}
     </PanelSection>
     {(effect === 'solid' || effect === 'breath') && <PanelSection title="Color de las zonas seleccionadas">
-      {channels.map(([shift,label]) => <PanelSectionRow key={label}><SliderField label={label} value={channelValue(zoneConfig.color,shift)} min={0} max={255} step={1} disabled={blocked} onChange={value => edit(zoneChannel(draft.current,shift,value))}/></PanelSectionRow>)}
+      {channels.map(([shift,label]) => <PanelSectionRow key={label}><SliderField label={percentLabel(label,channelValue(zoneConfig.color,shift),0,255)} value={channelValue(zoneConfig.color,shift)} min={0} max={255} step={1} showValue={false} disabled={blocked} onChange={value => edit(zoneChannel(draft.current,shift,value))}/></PanelSectionRow>)}
     </PanelSection>}
     {effect === 'gradient' && zoneConfig.transition_colors.map((color, endpoint) => <PanelSection key={endpoint} title={endpoint === 0 ? 'Color inicial' : 'Color final'}>
       <PanelSectionRow><div style={{height:20, width:'100%', background:color, border:'1px solid #d1fff2', borderRadius:4}} /></PanelSectionRow>
-      {channels.map(([shift,label]) => <PanelSectionRow key={label}><SliderField label={label} value={channelValue(color,shift)} min={0} max={255} step={1} disabled={blocked} onChange={value => edit(transitionChannel(draft.current,endpoint,shift,value))}/></PanelSectionRow>)}
+      {channels.map(([shift,label]) => <PanelSectionRow key={label}><SliderField label={percentLabel(label,channelValue(color,shift),0,255)} value={channelValue(color,shift)} min={0} max={255} step={1} showValue={false} disabled={blocked} onChange={value => edit(transitionChannel(draft.current,endpoint,shift,value))}/></PanelSectionRow>)}
     </PanelSection>)}
     <PanelSection>
-      <PanelSectionRow><ToggleField label="Recuperar al despertar/encender" checked={config.resume} disabled={blocked} description="Espera a que la sesión esté preparada y cuenta 10 segundos antes de apagar/restaurar las luces una vez; sin depender de los avisos de Steam." onChange={resume=>edit({resume})}/></PanelSectionRow>
+      <PanelSectionRow><ToggleField label="Recuperar al despertar/encender" checked={config.resume} disabled={blocked} description="Restaura una vez tras 10 segundos de sesión operativa, sin depender de los avisos de Steam. No interviene al entrar en suspensión." onChange={resume=>edit({resume})}/></PanelSectionRow>
     </PanelSection>
   </>;
 }
@@ -138,7 +138,7 @@ export default definePlugin(() => {
   onDismount() {
     closing = true;
     clearInterval(heartbeat);
-    // Backend owns sleep observation and shutdown, including late frontend unloads.
+    // Backend owns pulsed recovery and shutdown, including late frontend unloads.
     void queue.close().catch(()=>{});
   },
 });

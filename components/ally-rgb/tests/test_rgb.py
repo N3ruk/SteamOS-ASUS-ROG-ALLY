@@ -367,6 +367,17 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
             self.assertTrue((await other.state())['active'])
         finally: await other.release()
 
+    async def test_new_pair_selections_persist_without_lighting_io(self):
+        await self.manager.apply(config())
+        for pair in ('pair23','pair14'):
+            before=copy.deepcopy(self.manager.target['zones'])
+            with patch.object(self.manager.hw,'write',side_effect=AssertionError('selector wrote LED')):
+                state=await self.manager.select_zone(pair)
+            self.assertEqual(state['editor_zone'],pair)
+            self.assertEqual(state['config']['zones'],before)
+            self.assertEqual(self.new_manager().settings.config['zone'],pair)
+            self.assertIsNone(self.manager.task)
+
     async def test_selecting_zone_on_empty_startup_never_arms_default_restore(self):
         with patch.object(self.manager.hw,'write',side_effect=AssertionError('selection cannot apply defaults')):
             state = await self.manager.select_zone('zone4')
@@ -397,7 +408,7 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
         try:
             with patch.object(other.hw, 'write', wraps=other.hw.write) as write:
                 await other.restore_startup()
-                self.assertEqual(write.call_count, 2)
+                self.assertEqual(write.call_count, 1)
             self.assertEqual(other.target, rgb.validate(cfg))
             self.assertEqual(other.hw.state()['brightness'], 69)
             self.assertTrue((await other.state())['active'])
@@ -437,21 +448,17 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(other.task)
         self.assertIsNone(other.lock.file)
 
-    async def test_late_device_restores_and_get_state_remains_read_only(self):
+    async def test_missing_device_skips_once_and_status_is_cached(self):
         self.manager.settings.save(config(brightness=20))
         other = self.new_manager()
-        original = self.device.hw.state
-        calls = [0]
-        def late():
-            calls[0] += 1
-            if calls[0] == 1: raise FileNotFoundError()
-            return original()
         try:
-            with patch.object(other.hw, 'state', side_effect=late):
+            with patch.object(other.hw, 'state', side_effect=FileNotFoundError()) as read:
                 await other.restore_startup()
-            self.assertEqual(other.target['brightness'],20)
-            with patch.object(other.hw, 'write', side_effect=AssertionError('status writes')):
+                calls=read.call_count
                 await other.state()
+                self.assertEqual(read.call_count,calls)
+            self.assertIsNone(other.target)
+            self.assertEqual(other.phase,'skipped')
         finally:
             await other.shutdown()
 
@@ -552,7 +559,8 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(self.manager.lock.file)
         (self.device.path/'brightness').write_text('0')
         result=await self.manager.resume()
-        self.assertTrue(result['active'])
+        self.assertFalse(result['active']);self.assertTrue(result['applied'])
+        self.assertIsNone(self.manager.task)
         self.assertEqual(self.device.hw.state()['brightness'],64)
 
     async def test_resume_disabled_does_not_write(self):
@@ -579,8 +587,9 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
         await self.manager.apply(config())
         (self.device.path/'multi_intensity').write_text('12 34 56 78')
         await asyncio.sleep(1.08)
-        self.assertIsNone(self.manager.target)
-        self.assertIn('cedido',self.manager.error)
+        self.assertIsNotNone(self.manager.target)  # Cached desired profile, not live readback.
+        self.assertIsNone(self.manager.task)
+        self.assertIsNone(self.manager.lock.file)
         self.assertEqual(self.device.hw.state()['colors'],[12,34,56,78])
 
 

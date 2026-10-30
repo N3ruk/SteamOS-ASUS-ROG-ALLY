@@ -28,7 +28,7 @@ CATALOG = {
         'requirements': 'Mismo hardware que Ally Power; Decky instalado y activo, API local compatible y python3-aiohttp. No instala Decky.'},
     'ally-rgb': {
         'name': 'ALLY RGB — Decky', 'version': '1.2',
-        'description': 'Iluminación de cuatro zonas con efectos, colores y velocidades independientes; transición de dos colores y recuperación opcional al despertar/encender tras preparación y espera de 10 segundos. No controla potencia ni ventiladores.',
+        'description': 'Iluminación de cuatro zonas con efectos, colores y velocidades independientes; parejas 2–3/1–4, porcentajes de color/velocidad, transición de dos colores y recuperación opcional tras 10 segundos de sesión operativa. No controla potencia ni ventiladores.',
         'requirements': 'ROG Ally RC71L con SteamOS x86_64 y LED sysfs de cuatro zonas. Decky instalado y activo, python3-aiohttp. Ally X no validada; no instala Decky ni detiene otros gestores RGB.'},
     'bluetooth-trust-manager': {
         'name': 'Confianza Bluetooth', 'version': '1.0.0',

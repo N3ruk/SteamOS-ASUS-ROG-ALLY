@@ -3,8 +3,8 @@
 ## Suite 1.2
 
 - 46 pruebas de selección, catálogo, integridad, instaladores y adaptadores Decky.
-- ALLY RGB: 108 pruebas Python y 14 JavaScript; TypeScript estricto y Rollup correctos.
-- 168 pruebas automatizadas de la suite y ALLY RGB en esta verificación. Los números
+- ALLY RGB: 124 pruebas Python y 18 JavaScript; TypeScript estricto y Rollup correctos.
+- 188 pruebas automatizadas de la suite y ALLY RGB en esta verificación. Los números
   se refieren a casos de prueba, no a equipos físicos.
 
 La interfaz gráfica se prueba con todas las casillas desmarcadas. No ofrece Ally Power
@@ -42,8 +42,8 @@ reinicio del gestor y suspensión/reanudación simulados. Recuperación desactiv
 corrupto no aplica colores; no se sobreescribe el archivo corrupto.
 
 Backend/frontend cargados y readback de animaciones existentes observados en una RC71L:
-las ondas continuaron al seleccionar otra zona. Esto no es una observación visual del color
-físico ni un ciclo real de apagado/suspensión. El empaquetado no reinstala el plugin activo.
+las ondas continuaron al seleccionar otra zona. Esto no es una lectura física del color
+físico. La validación real posterior se describe a continuación. El empaquetado no reinstala el plugin activo.
 
 El lector de batería se prueba con mando conectado/desconectado, periférico detectado
 primero con porcentaje distinto, BAT0 sin scope, marcado Device, batería ausente y datos
@@ -57,18 +57,23 @@ rechazo de paquetes ajenos, dimmer y ausencia de escrituras al consultar el esta
 El instalador descubre ese dispositivo sin abrir ni escribir hidraw. El éxito de HID
 significa aceptación por transporte; no equivale a readback físico de los colores.
 
-La recuperación backend se prueba con señales logind y respaldo de relojes, avisos
-perdidos/duplicados y preparación de Steam. Verifica 10 s sin escrituras previas,
-restauración única, suspensión durante cuenta atrás o entre apagado/encendido,
-cambios manuales que prevalecen, fallo sin reintento y descarga cancelable.
-Los auxiliares se prueban con E/S atascada y flock heredado; el modo de lectura
-rechaza escrituras. El guard de cierre IPC tiene pruebas de EOF, cancelación,
-idempotencia y respeto de implementaciones con comprobación EOF nativa.
+La recuperación se prueba desde pulsos y relojes simulados: cuenta de 10 s,
+continuidad, huecos y límites, un solo envío directo sin apagado temporal,
+fallos sin reintentos, ediciones/cierre que prevalecen y nuevo ciclo de sueño.
+El estado del panel es caché y los colores fijos no dejan actividad RGB residente.
 
-En el host RC71L/Decky 3.3.0 se comprobó aplicación y recarga con recuperación activa:
-el cierre terminó en 0,1 s sin SIGKILL y volvió a restaurar el perfil. Es aceptación
-del transporte, no lectura física de los LED. No se realizó suspensión real Gaming
-para esta versión; no se afirma corregida la causa original del bloqueo del sistema.
+Los auxiliares se prueban con scope verificado, inscripción asíncrona del PID antes
+de payload, rechazo de frames antiguos y por informe, timeout pausado durante
+congelación y flock heredado. Un auxiliar no terminable impide sustituirlo.
+El probe real en RC71L verificó user.slice sin tocar LED. El guard IPC conserva
+pruebas de EOF, cancelación, idempotencia y respeto de comprobaciones nativas.
+
+Recarga activa comprobada en 0,1 s sin SIGKILL y restauración directa tras los
+10 s. El usuario confirma tres suspensiones/reanudaciones correctas en Gaming
+con un emulador abierto y recuperación activa. También valida las parejas
+2–3/1–4 y los porcentajes RGB/transición/velocidad. No demuestra una causa concreta
+de kernel, un readback físico del color ni compatibilidad universal. El empaquetado
+no reinstala el plugin ni cambia la configuración del host.
 
 ## Otras aplicaciones y límites
 

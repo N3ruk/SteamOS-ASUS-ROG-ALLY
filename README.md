@@ -59,7 +59,8 @@ bash SteamOS-ASUS-ROG-ALLY-1.2-SteamOS.run --extract fuentes
 Código propio bajo MIT; **no** se aplica esa licencia a todo el contenido indiscriminadamente. RyzenAdj y recursos de terceros conservan sus licencias; los iconos PNG aportados por el usuario no se relicencian como MIT. Véase [THIRD-PARTY.md](THIRD-PARTY.md).
 
 El centralizado y ALLY RGB se distribuyen como **1.2**. ALLY RGB incluye recuperación
-cancelable tras preparación y 10 segundos de espera, E/S aislada y corrección local
-del cierre IPC de Decky. Los demás componentes conservan versiones y paquetes.
+basada en pulsos de sesión y 10 segundos de continuidad, E/S confinada a scopes
+transitorios de user.slice y sin sondeo RGB fijo ni apagado/encendido forzado. Añade
+parejas 2–3/1–4, porcentajes de color/velocidad y conserva el guard de cierre IPC. Los demás componentes conservan versiones y paquetes.
 El individual `Ally-Power-Decky-1.1.0.zip` contiene el plugin nativo 1.1.2;
 consulta su catálogo. La release anterior permanece disponible y no se sobrescribe.

@@ -4,6 +4,8 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 
+const baseLabel = label => typeof label === 'string' ? label.split(' · ')[0] : label;
+
 // Isolated hook/Decky boundary: execute the real component and its event handlers,
 // without starting Steam, importing Steam's webpack modules, or touching LEDs.
 function harness(steamClient = {System: {}}) {
@@ -64,7 +66,7 @@ function harness(steamClient = {System: {}}) {
   return {
     state,applied,render,
     async ready(){render();await new Promise(resolve=>setImmediate(resolve));},
-    find(tree,label){return walk(tree,node=>node.props.label===label)[0];},
+    find(tree,label){return walk(tree,node=>baseLabel(node.props.label)===label)[0];},
     all(tree,type){return walk(tree,node=>node.type===type);},
     async flush(){await queue.flush();},
     async poll(){for(const timer of timers)timer();await new Promise(resolve=>setImmediate(resolve));},
@@ -100,11 +102,11 @@ test('RGB handlers use the latest selected group even if Steam retains an older 
 test('transition exposes six sliders and independent initial/final colors',async()=>{
   const h=harness();await h.ready();
   h.find(h.render(),'Efecto').props.onChange({data:'gradient'});await h.flush();
-  const sliders=h.all(h.render(),'SliderField').filter(node=>['Rojo','Verde','Azul'].includes(node.props.label));
+  const sliders=h.all(h.render(),'SliderField').filter(node=>['Rojo','Verde','Azul'].includes(baseLabel(node.props.label)));
   assert.equal(sliders.length,6);
   sliders[1].props.onChange(80);await h.flush();
   assert.deepEqual(h.applied.at(-1).zones[0].transition_colors,['#ff5000','#0000ff']);
-  const updated=h.all(h.render(),'SliderField').filter(node=>['Rojo','Verde','Azul'].includes(node.props.label));
+  const updated=h.all(h.render(),'SliderField').filter(node=>['Rojo','Verde','Azul'].includes(baseLabel(node.props.label)));
   updated[3].props.onChange(70);await h.flush();
   assert.deepEqual(h.applied.at(-1).zones[0].transition_colors,['#ff5000','#4600ff']);
 });
@@ -170,4 +172,59 @@ test('wake recovery does not require or register Steam frontend sleep hooks',asy
   assert.match(toggle.props.description,/sin depender de los avisos de Steam/);
   toggle.props.onChange(false);await h.flush();
   assert.equal(h.applied.at(-1).resume,false);
+});
+
+
+test('new paired selectors edit only 2/3 or 1/4 and preserve other zone settings',async()=>{
+  for(const [pair,label,selected] of [['pair23','Zonas 2 y 3',[1,2]],['pair14','Zonas 1 y 4',[0,3]]]){
+    const h=harness();await h.ready();
+    const selector=h.find(h.render(),'Zonas');
+    assert.equal(selector.props.rgOptions.find(o=>o.data===pair).label,label);
+    const before=structuredClone(h.state.config.zones);
+    selector.props.onChange({data:pair});await h.flush();
+    assert.equal(h.applied.length,0); // selection is metadata, not lighting
+    h.find(h.render(),'Rojo').props.onChange(255);await h.flush();
+    for(let i=0;i<4;i++)assert.equal(h.state.config.zones[i].color,selected.includes(i)?'#ff'+before[i].color.slice(3):before[i].color);
+    h.find(h.render(),'Efecto').props.onChange({data:'wave'});await h.flush();
+    h.find(h.render(),'Velocidad').props.onChange(73);await h.flush();
+    for(let i=0;i<4;i++){
+      assert.equal(h.state.config.zones[i].effect,selected.includes(i)?'wave':before[i].effect);
+      assert.equal(h.state.config.zones[i].speed,selected.includes(i)?73:before[i].speed);
+    }
+    assert.equal(h.find(h.remount(),'Zonas').props.selectedOption,pair);
+  }
+});
+
+test('RGB percentage labels show 0..100 while edits retain every 8-bit channel value',async()=>{
+  const h=harness();h.state.config.zones.forEach(z=>z.color='#0080ff');await h.ready();
+  assert.equal(h.find(h.render(),'Rojo').props.label,'Rojo · 0 %');
+  assert.equal(h.find(h.render(),'Verde').props.label,'Verde · 50 %');
+  assert.equal(h.find(h.render(),'Azul').props.label,'Azul · 100 %');
+  const slider=h.find(h.render(),'Rojo');
+  assert.deepEqual([slider.props.min,slider.props.max,slider.props.step],[0,255,1]);
+  assert.equal(slider.props.showValue,false);
+  slider.props.onChange(129);
+  assert.equal(h.find(h.render(),'Rojo').props.label,'Rojo · 51 %');
+  await h.flush();assert.equal(h.state.config.zones[0].color,'#8180ff');
+});
+
+test('speed percentage uses current minimum and maximum without changing saved speeds',async()=>{
+  for(const [speed,percent] of [[10,0],[55,50],[100,100]]){
+    const h=harness();h.state.config.zones.forEach(z=>{z.effect='wave';z.speed=speed;});await h.ready();
+    const slider=h.find(h.render(),'Velocidad');
+    assert.equal(slider.props.label,`Velocidad · ${percent} %`);
+    assert.equal(slider.props.value,speed);assert.equal(slider.props.showValue,false);
+    slider.props.onChange(57);await h.flush();
+    assert.equal(h.state.config.zones[0].speed,57);
+    assert.equal(h.find(h.render(),'Velocidad').props.label,'Velocidad · 52 %');
+  }
+});
+
+test('both transition endpoints expose live percentages without changing color precision',async()=>{
+  const h=harness();h.state.config.zones.forEach(z=>{z.effect='gradient';z.transition_colors=['#0080ff','#ff8000'];});await h.ready();
+  const sliders=()=>h.all(h.render(),'SliderField').filter(n=>['Rojo','Verde','Azul'].includes(baseLabel(n.props.label)));
+  assert.deepEqual(sliders().map(n=>n.props.label),['Rojo · 0 %','Verde · 50 %','Azul · 100 %','Rojo · 100 %','Verde · 50 %','Azul · 0 %']);
+  sliders()[5].props.onChange(129);await h.flush();
+  assert.equal(sliders()[5].props.label,'Azul · 51 %');
+  assert.deepEqual(h.state.config.zones[0].transition_colors,['#0080ff','#ff8081']);
 });

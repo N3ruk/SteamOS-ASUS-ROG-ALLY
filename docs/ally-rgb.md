@@ -5,10 +5,12 @@ No modifica TDP, SMT, núcleos/hilos, carga, ventiladores, EC ni MCU. Ally X no 
 
 ## Funciones y uso
 
-- Cuatro zonas RGB, todas, por parejas o una a una.
+- Cuatro zonas RGB, todas, parejas **1 y 2**, **3 y 4**, **2 y 3**, **1 y 4**, o una a una.
 - **Efecto, velocidad, color y transición propios de cada zona**, funcionando simultáneamente.
 - Color fijo, respiración, arcoíris, onda, transición y batería interna de la Ally.
 - Color manual mediante canales rojo/verde/azul; transición con **Color inicial** y **Color final**.
+- Porcentajes visibles 0–100 % de cada canal, incluidos ambos colores de Transición, sin perder los 256 niveles RGB.
+- Velocidad indicada de 0 % (mínimo del efecto) a 100 % (máximo), sin cambiar valores guardados ni ritmos anteriores.
 - Brillo y encendido/apagado generales. El kernel expone un único brillo para los cuatro LED.
 - **Recuperar al despertar/encender** guarda automáticamente la configuración completa de las cuatro zonas.
 
@@ -56,21 +58,31 @@ anteriores no se aplican colores al cargar. Si ya tenías una configuración gua
 **Recuperar al despertar/encender** activado, el plugin la restaura al cargar Decky,
 incluso sin abrir su panel. Conserva estado apagado, brillo y los cuatro efectos/colores/velocidades.
 Desactivar la opción impide la restauración automática, pero no borra los ajustes.
-La recuperación pertenece al backend: suscripción tipada de systemd-logind y respaldo
-BOOTTIME/MONOTONIC. No depende de los avisos internos de suspensión de Steam, pero
-exige una confirmación ligera de que Steam responde, también con QAM cerrado.
-Espera a logind despierto/sin apagado y a una identidad RGB estable 2 s; después cuenta
-10 s despierto y hace una sola secuencia de brillo cero, pausa de 250 ms y restauración.
-No reinicia USB ni guarda el apagado temporal. Si no confirma preparación en 60 s,
-o falla un comando, omite ese ciclo sin reintentar escrituras. Un perfil apagado o con
-brillo cero no se enciende. Nueva suspensión, edición manual o descarga cancela la acción.
+La recuperación se decide en el backend desde pulsos ligeros de Steam, también
+con QAM cerrado. Detecta un ciclo de suspensión por BOOTTIME−MONOTONIC y espera
+10 s de pulsos continuos; una interrupción >4 s reinicia la cuenta. Sin continuidad
+en 60 s se omite el ciclo. No depende de hooks internos de suspensión ni hora civil.
+Restaura el perfil vigente **una sola vez y directamente, sin apagado/encendido
+forzado**. Un perfil apagado o con brillo cero no se enciende. La edición manual,
+un nuevo ciclo o la descarga invalidan lo pendiente; los comandos no se reintentan.
 
-La E/S real RGB vive en un auxiliar con timeout, identidad comprobada y bloqueo heredado.
-No consulta/escribe HID desde el aviso previo a suspensión ni añade inhibidores, servicios
-o hooks del sistema. Un auxiliar no terminable impide lanzar sustitutos. Durante control
-manual activo se mantiene observación de seguridad aunque la recuperación esté apagada,
-sin autorizar restauración al despertar. Si falla después del apagado temporal, los LED
-pueden quedar apagados hasta una intervención posterior.
+Toda E/S RGB se realiza en un auxiliar que se inscribe en un scope transitorio
+`ally-rgb-io-*.scope` dentro de `user.slice` ANTES de recibir comandos. Ambos procesos
+verifican el cgroup y el ciclo de sueño, también antes de cada informe, rechazando
+comandos antiguos. La espera de la inscripción es acotada: la respuesta de systemd
+es un trabajo asíncrono y se comprueba el traslado efectivo del PID.
+
+No hay observador logind ni monitor de reloj permanente; logind solo se consulta
+al aplicar. No se instalan servicios persistentes, hooks de sueño o inhibidores,
+ni se modifica el freezer. Los auxiliares de RGB quedan junto a la sesión que
+SteamOS congela al suspender. El timeout no mata un auxiliar congelado ni permite
+sustituir uno no terminable, que conserva su bloqueo. Ningún timeout puede resolver
+por sí solo una operación no interrumpible del kernel.
+
+Consultar estado usa caché y no lee ni escribe el RGB. Un perfil fijo se aplica
+y libera trabajador/flock, sin sondeo de LED residente. Las animaciones reutilizan
+un único auxiliar durante su actividad. El estado mostrado es la última aplicación
+conocida: un cambio externo en reposo puede no reflejarse hasta otra operación.
 
 Incluye una adaptación de cierre para [Decky #975](https://github.com/SteamDeckHomebrew/decky-loader/issues/975),
 limitada al proceso RGB: evita el bucle IPC en EOF sin modificar el Loader ni otros plugins.
@@ -82,8 +94,8 @@ no garantiza conocer firmware u otros escritores. Ally Power puede controlar pot
 independiente: ALLY RGB no usa su bloqueo ni cambia su configuración.
 
 Cerrar el panel deja las animaciones funcionando. Descargar/desinstalar el backend detiene
-su trabajador sin restaurar colores encima de otro gestor. Una modificación externa o desaparición
-del dispositivo provoca cesión, sin bucle de reimposición.
+su trabajador sin restaurar colores encima de otro gestor. Al escribir, una modificación externa o desaparición
+del dispositivo provoca cesión, sin bucle de reimposición ni sondeo RGB en reposo.
 
 ## Actualizar o quitar
 
@@ -103,7 +115,7 @@ y `max_brightness=255`. En kernels compatibles escribe `multi_intensity` (cuatro
 RRGGBB) y `brightness`. Cuando el kernel recorta esos valores a 255 utiliza un fallback
 hidraw limitado a color y brillo RGB: USB ASUS 0b05:1abe, interfaz 02 del mismo dispositivo,
 descriptor e identidad comprobados. No modifica kernel, firmware, botones ni potencia.
-La comprobación del instalador descubre esa interfaz sin enviar órdenes. E/S con Python stdlib y observador D-Bus con dbus-next 0.2.3 vendorizado (MIT);
+La comprobación del instalador descubre esa interfaz sin enviar órdenes. E/S con Python stdlib y consultas D-Bus puntuales mediante busctl de SteamOS;
 sin instalar paquetes, `termios`, pyserial ni bibliotecas HID externas.
 
 En HID el estado informa aceptación del transporte, no lectura física del color; conserva
@@ -115,7 +127,8 @@ conocidos. No garantiza detectar escritores HID desconocidos. No reinstala contr
 - [Verificación y límites de la suite](VERIFICATION.md).
 - [Licencias y referencias](../components/ally-rgb/THIRD-PARTY.md).
 
-122 pruebas automatizadas (108 Python y 14 JavaScript), compilación TypeScript/Rollup y carga
-real del backend/frontend comprobadas. Se observó por readback que los efectos ya activos continúan
-al seleccionar otra zona. No equivale a verificar visualmente los colores, un ciclo físico de
-suspensión/encendido o una instalación nueva en cualquier modelo de Ally.
+142 pruebas automatizadas (124 Python y 18 JavaScript), compilación TypeScript/Rollup y carga
+real del backend/frontend comprobadas. El usuario validó tres suspensiones/reanudaciones
+en Gaming con un emulador abierto y recuperación activa, y las nuevas parejas/porcentajes.
+No equivale a lectura física de colores, prueba de causa raíz de kernel ni compatibilidad
+universal con otras Ally o versiones de SteamOS.

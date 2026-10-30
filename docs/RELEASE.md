@@ -1,19 +1,29 @@
 # SteamOS ASUS ROG ALLY 1.2
 
-Nueva release del instalador centralizado **1.2** y **ALLY RGB 1.2**. Los demás
+Instalador centralizado **1.2** y **ALLY RGB 1.2**. Los demás
 componentes conservan sus versiones y sus cinco paquetes anteriores sin cambios.
 La release v1.0.0 permanece disponible y no se reemplaza.
 
 ## ALLY RGB 1.2
 
-- Recuperación opcional al arrancar/despertar: confirma disponibilidad de la sesión
-  y del dispositivo, espera 10 segundos y apaga/restaura una sola vez el perfil.
-- Cancelación por nueva suspensión, edición manual, cambio de dispositivo o descarga.
-- Acceso RGB aislado, timeouts y bloqueo compartido con sus propios escritores;
-  sin servicios nuevos, inhibidores ni reinicios USB.
-- Corrección de cierre IPC de Decky limitada al proceso RGB; no modifica el Loader.
-- Conserva brillo, colores, velocidades, transiciones y selección de las cuatro zonas.
-- Sin perfil previo válido no aplica luces al cargar. Sigue limitado a ROG Ally RC71L.
+- Selector de edición: todas, parejas 1 y 2 / 3 y 4 / **2 y 3 / 1 y 4**, o zonas individuales. Cada zona conserva su efecto, color, velocidad y transición; seleccionar otro grupo no aplica iluminación ni detiene las demás zonas.
+- Porcentajes visibles 0–100 % junto a cada canal de color, incluidos Color inicial y Color final de Transición. La visualización se redondea, pero se conservan los 256 niveles RGB.
+- Velocidad indicada de 0 % (mínima) a 100 % (máxima), sin cambiar los ritmos ni la configuración previamente guardada.
+
+### Recuperar al despertar/encender
+
+El backend detecta la suspensión real por BOOTTIME−MONOTONIC al recibir pulsos ligeros de Steam, también con QAM cerrado. Cuenta 10 s de pulsos continuos antes de aplicar una sola vez el perfil vigente. Si los pulsos se interrumpen más de 4 s, reinicia la cuenta; si no logra continuidad en 60 s, omite ese ciclo. Un perfil apagado o con brillo cero no se enciende automáticamente.
+
+La restauración envía directamente brillo y cuatro zonas: **no fuerza un apagado/encendido temporal**. Edición manual, descarga o nuevo ciclo de suspensión invalidan el intento; los comandos fallidos no se reintentan en bucle.
+
+Toda E/S RGB se ejecuta en un auxiliar inscrito y verificado, antes de recibir comandos, en un scope transitorio de `user.slice`, junto a la sesión que SteamOS congela al suspender. Padre e hijo verifican cgroup/ciclo de sueño y rechazan comandos antiguos. No instala servicios persistentes, hooks de sueño ni inhibidores. No hay observador logind ni monitor periódico de reloj; logind solo se consulta puntualmente al aplicar. El estado del panel usa caché y los perfiles fijos no dejan un auxiliar, bloqueo o sondeo RGB residente. Las animaciones reutilizan un único auxiliar durante su actividad.
+
+Se han validado tres suspensiones/reanudaciones satisfactorias en Gaming, con un
+emulador abierto y la función activa, y la interfaz de las nuevas parejas y
+porcentajes. Ese resultado no demuestra una causa concreta de los antiguos bloqueos
+ni compatibilidad universal. El transporte HID aceptado no es lectura física del color.
+
+Versión y release se mantienen en **1.2**. Sin cambios en ALLY POWER ni en otros componentes de la suite.
 
 ## Componentes incluidos
 
@@ -51,8 +61,8 @@ ese caso utiliza la gestión nativa de Decky. Los ajustes guardados se conservan
 
 ## Comprobaciones y límites
 
-108 pruebas Python RGB y 14 JavaScript, TypeScript/Rollup, pruebas de la suite y
+124 pruebas Python RGB y 18 JavaScript, TypeScript/Rollup, 46 pruebas de la suite y
 verificación integral de los siete paquetes sin instalar componentes en el host.
-Recarga del backend RGB activo comprobada en 0,1 s sin SIGKILL. Las pruebas no
-acreditan lectura física de colores ni una suspensión real en Gaming; no se declara
-resuelta la causa de los bloqueos anteriores ni compatibilidad universal con otras Ally.
+Recarga del backend RGB activo comprobada en 0,1 s sin SIGKILL; validación del usuario
+en Gaming y de la interfaz indicada arriba. Las pruebas no acreditan lectura física
+de colores ni compatibilidad universal con otras Ally o versiones de SteamOS.

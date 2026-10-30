@@ -86,6 +86,11 @@ interfaz y publicación; la versión RGB está en su package.json/backend y en e
 El ZIP individual exterior RGB es un instalador `.run`: el ZIP nativo Decky está dentro
 del payload. El centralizado incluye exactamente ese mismo ZIP nativo, fuentes y licencias.
 
-La publicación 1.2 crea una release nueva `v1.2`, fijada al commit revisado. Conserva
-íntegra v1.0.0; no usa clobber, retag ni force push. Comprueba de nuevo los ocho assets
-(siete ZIP y SHA256SUMS) después de descargarlos. No incluye paquetes de prueba 1.3.x.
+La release v1.2 ya existe. `publish.py` es solo para una release nueva y rechaza
+reemplazar una existente. Para una actualización del mismo v1.2 expresamente
+autorizada: inspeccionar y respaldar metadata/assets, preservar tag, título, ID y
+nombres; construir solo central/RGB y conservar los otros cinco ZIP. Empujar main
+sin force ni retag; sustituir exclusivamente esos dos ZIP y SHA256SUMS, y actualizar
+la descripción con docs/RELEASE.md si está autorizado. No crear release, discusión
+ni anuncio nuevos. Descargar los ocho assets y verificar hashes, metadata y los
+cinco assets ajenos; v1.0.0 debe permanecer íntegra. No incluye paquetes 1.3.x.

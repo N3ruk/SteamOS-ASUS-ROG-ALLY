@@ -1,6 +1,6 @@
 # Verificación 1.2
 
-- TypeScript estricto, Rollup, 108 pruebas Python y 14 JavaScript correctos.
+- TypeScript estricto, Rollup, 124 pruebas Python y 18 JavaScript correctos.
 - Cuatro efectos distintos compuestos a la vez; cambiar selección no cambia el frame.
 - Editar otra zona mantiene el tiempo de las ya activas y conserva un único trabajador.
 - Selección pura sin escrituras, bloqueo ni reinicio de tiempos; en inicio vacío tampoco
@@ -25,26 +25,32 @@
 - Se mantiene sysfs/readback en kernels compatibles. HID declara únicamente
   aceptación por transporte; no inventa lectura física ni rollback.
 
-- Recuperación backend con señales logind y respaldo BOOTTIME/MONOTONIC; señales duplicadas,
-  avisos perdidos, bucle ocupado sin falsa reanudación y cierre del proceso monitor.
-- Recuperación única de brillo y frame fijo, disponibilidad tardía antes de escribir,
-  fallos sin reintentos de escritura, cancelación por edición/cierre y suspensión repetida.
-- No reintenta contra otro gestor, identidad inválida, trigger o bloqueo ocupado.
-- Interfaz funcional aunque no existan los hooks internos de suspensión de Steam.
+## Candidata local session-scope-v2
 
-Las pruebas usan dispositivos temporales y no acreditan el color físico de los LED.
-La comprobación de carga real y persistencia del backend se realiza por separado, sin
-reiniciar ni suspender físicamente la máquina y sin aplicar patrones RGB de prueba.
+- Relojes simulados: espera de pulsos, 10 s continuos, huecos que reinician la cuenta,
+  timeout de preparación, suspensión real frente a bloqueo del event loop, pulsos
+  duplicados y un solo envío directo (sin brillo cero temporal).
+- Edición/desactivación/cierre ganan a recuperación pendiente; fallo no se reintenta.
+- Perfil fijo sin trabajador/flock/lecturas periódicas; get_state solo caché.
+- Animador se detiene al congelarse sin matar el auxiliar en la transición.
+- Scope verificado, inscripción antes de payload, fracaso cerrado y rechazo de comandos
+  de un ciclo de sueño anterior. Lecturas/escrituras reales solo en user.slice.
+- Timeout de lectura pausado mientras está congelado; auxiliar no terminable bloquea
+  sustitución. Guard EOF Decky conservado.
+- Todas las pruebas de hardware usan dispositivos temporales, no los LED del equipo.
 
-## 1.2: recuperación diferida
+Comprobado en el host: instalación nativa 1.2, probe sin acceso LED dentro de
+user.slice, scopes recogidos al salir y una restauración directa al activar la opción
+tras 10 s; perfil conservado salvo resume=true. POWER y Loader no reiniciados.
+La respuesta de StartTransientUnit es un trabajo asíncrono: se espera y verifica
+el traslado efectivo del PID antes de enviar cualquier payload.
 
-- 108 pruebas Python aprobadas: protocolo HID, identidad, perfiles, fases,
-  cancelación por suspensión/edición/cierre, fallos sin reintento y auxiliares
-  reales simulados con timeout/flock heredado. No utilizan luces reales como
-  dispositivos de prueba.
-- TypeScript y Rollup correctos; 14 pruebas JavaScript de cola e interfaz aprobadas.
-- Observador D-Bus y entrada de lectura del auxiliar comprobados en el host sin
-  enviar informes RGB. La validación del transporte al aplicar no demuestra
-  lectura física del color ni valida una suspensión real en Gaming.
+El usuario confirma tres suspensiones/reanudaciones correctas con un emulador abierto y
+recuperación activa. No demuestra una causa concreta de kernel ni todos los casos.
 
-- 1.2 añade pruebas del guard EOF local: cesión del bucle, cancelación, mensajes normales, idempotencia y exclusión de versiones con comprobación nativa.
+Nuevas parejas 2–3 y 1–4 comprobadas en selección, edición y persistencia; edición
+RGB/efecto/velocidad solo afecta al grupo. Porcentajes visibles RGB y transición
+(0–255 → 0–100 %) y velocidad (mínimo10 → 0 %, máximo100 → 100 %), sin cambiar
+configuración ni precisión. Recuperación session-scope-v2 sin modificaciones.
+El usuario valida también la interfaz real de las nuevas parejas y porcentajes.
+Los resultados corresponden a esta RC71L y no prueban compatibilidad universal.

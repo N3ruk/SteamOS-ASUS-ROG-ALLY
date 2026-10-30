@@ -96,8 +96,9 @@ def validate_report(report):
 
 
 class RGBTransport:
-    def __init__(self, locator=locate):
+    def __init__(self, locator=locate, gate=None):
         self.locator = locator
+        self.gate = gate or (lambda:None)
         self.fd = None
         self.identity = None
         self.level = None
@@ -111,6 +112,7 @@ class RGBTransport:
         bright, color = reports(colors, brightness)
         for report in (bright, color): validate_report(report)
         try:
+            self.gate()
             identity = self.locator(device)
             if self.identity != identity:
                 self.close()
@@ -120,6 +122,7 @@ class RGBTransport:
                 if not stat.S_ISCHR(actual.st_mode) or actual.st_rdev != identity[2]:
                     raise ValueError('El nodo hidraw cambió de identidad.')
                 info = bytearray(8)
+                self.gate()
                 fcntl.ioctl(fd, GET_INFO, info, True)
                 if struct.unpack('=Ihh', info) != (3, 0x0B05, 0x1ABE):
                     raise ValueError('La identidad USB del descriptor abierto no coincide.')
@@ -136,6 +139,7 @@ class RGBTransport:
             raise
 
     def _send(self, report):
+        self.gate()
         validate_report(report)
         result = fcntl.ioctl(self.fd, SET_FEATURE, bytearray(report), True)
         if result != REPORT_SIZE:

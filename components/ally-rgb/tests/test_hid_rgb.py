@@ -121,6 +121,24 @@ class TransportTests(unittest.TestCase):
             transport.close()
             self.assertEqual(closed.call_count, 2)
 
+    def test_epoch_change_between_reports_rejects_old_colors(self):
+        from py_modules.session_io import SessionBoundary
+        identity=(Path('/dev/fake-rgb'),'/fake/device',42)
+        stale=[False];sent=[]
+        def gate():
+            if stale[0]: raise SessionBoundary('old epoch')
+        def ioctl(fd,cmd,data,mutate):
+            if cmd==hid.GET_INFO:
+                data[:]=struct.pack('=Ihh',3,0x0B05,0x1ABE);return 0
+            sent.append(bytes(data));stale[0]=True;return 64
+        transport=hid.RGBTransport(Mock(return_value=identity),gate=gate)
+        with patch.object(os,'open',return_value=41),patch.object(os,'close'), \
+             patch.object(os,'fstat',return_value=SimpleNamespace(st_mode=stat.S_IFCHR,st_rdev=42)), \
+             patch.object(hid.fcntl,'ioctl',side_effect=ioctl):
+            with self.assertRaises(SessionBoundary): transport.write(Path('/fake'),[1]*4,255)
+        self.assertEqual(len(sent),1);self.assertEqual(sent[0][:4],hid.BRIGHTNESS_PREFIX)
+        self.assertIsNone(transport.fd)
+
     def test_bad_opened_identity_never_sends_and_closes(self):
         identity = (Path('/dev/fake-rgb'), '/fake/device', 42)
         transport = hid.RGBTransport(Mock(return_value=identity))
