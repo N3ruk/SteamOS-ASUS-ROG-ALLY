@@ -1,4 +1,4 @@
-# ALLY RGB 1.0.0
+# ALLY RGB 1.2
 
 Iluminación para **ASUS ROG Ally RC71L con SteamOS**, desde Decky. Solo iluminación:
 no controla TDP, SMT, ventiladores, carga ni el MCU. Ally X no está validada en esta versión.
@@ -19,7 +19,7 @@ no controla TDP, SMT, ventiladores, carga ni el MCU. Ally X no está validada en
 ## Instalar
 
 En Decky, activa las opciones de desarrollador y selecciona **Instalar plugin desde ZIP**:
-`ALLY-RGB-1.0.0.zip`. El ZIP lleva una sola carpeta superior `ally-rgb/`.
+`ALLY-RGB-1.2.zip`. El ZIP lleva una sola carpeta superior `ally-rgb/`.
 No necesita instalar Python, pyserial, HHD o controladores HID adicionales.
 
 Desactiva cualquier otro gestor RGB antes de usarlo. ALLY RGB no detiene otros plugins:
@@ -32,19 +32,18 @@ Sin ajustes guardados, con la opción desactivada o con ajustes corruptos, no es
 Al desactivar la opción se conserva la configuración para mostrarla en el panel, pero no
 se aplica automáticamente al encender ni al despertar. Cambiar controles sí aplica sus valores.
 
-La recuperación al encender funciona cuando Decky carga el plugin, incluso sin abrir su panel.
-Puede reintentar hasta 30 segundos si el dispositivo RGB todavía no está disponible.
-No reintenta contra otro gestor, un trigger del kernel o después de un cambio manual.
-La recuperación al despertar se ejecuta en el backend, sin depender del panel o de avisos
-internos de Steam. Observa `PrepareForSleep` de systemd-logind mediante el `busctl` del sistema
-y dispone de un respaldo comparando los relojes Linux BOOTTIME/MONOTONIC; no usa la hora civil.
-Al despertar cierra el transporte anterior e invalida las cachés, espera brevemente y reenvía
-brillo y cuatro colores aunque sean fijos. Reintenta errores transitorios del dispositivo
-hasta 20 veces (aproximadamente 10 segundos), sin reintentar contra otro gestor, bloqueo,
-trigger o identidad no válida. Una edición manual o descarga cancela la recuperación.
-El monitor se cierra con el plugin; no instala servicios ni cambia la configuración del sistema.
-El estado incluye el detector y la recuperación pendiente; los pasos se registran en Decky.
-No controla las luces durante la suspensión y no cambia `sleep_animation` desde la interfaz.
+La recuperación se ejecuta en el backend, sin depender de los avisos internos de
+suspensión de Steam ni de abrir QAM. Antes de actuar, espera a logind despierto y
+sin apagado, a una confirmación ligera de Steam y a una identidad RGB estable 2 s.
+Después cuenta 10 s despierto, baja el brillo a cero durante 250 ms y restaura el
+perfil vigente una vez. No reinicia USB ni guarda el apagado temporal.
+Si no confirma preparación en 60 s, o falla un comando, omite ese ciclo sin
+reintentar escrituras. Una nueva suspensión, cambio de identidad, edición manual
+o descarga cancela lo pendiente. Un perfil apagado o con brillo cero no se enciende.
+La observación usa D-Bus tipado y BOOTTIME/MONOTONIC; la hora civil no interviene.
+No consulta ni escribe HID desde el aviso previo a suspensión. No añade servicios,
+inhibidores ni hooks del sistema. El control manual conserva un observador de
+seguridad mientras está activo aunque la recuperación automática esté desactivada.
 
 Las zonas se numeran 1–4 porque su posición física exacta queda pendiente de confirmar.
 El selector **Zonas** solo cambia las zonas que vas a editar; no aplica colores ni reinicia
@@ -89,10 +88,10 @@ la opción está activada; no se instala ningún servicio de arranque adicional.
 - Detección de cambios externos, ausencia del dispositivo y cierre sin reimposición continua.
 - El readback del driver no prueba el color físico de los LED ni garantiza persistencia tras reiniciar.
 
-El runtime usa únicamente biblioteca estándar compatible con Decky, incluido `fcntl`
-para el fallback RGB. No importa `termios`, `serial`, bibliotecas HID externas ni
-controladores de otras marcas. No accede a red.
-Sin sincronización de pantalla/audio en esta primera versión.
+La E/S RGB utiliza biblioteca estándar, incluido `fcntl`, en un auxiliar aislado.
+La observación D-Bus emplea dbus-next 0.2.3 (MIT), vendorizado, fuera del Python
+congelado de Decky. No instala paquetes, importa `termios`/pyserial ni bibliotecas
+HID externas, ni realiza conexiones de red. No sincroniza pantalla/audio.
 
 ## Construir y verificar
 
@@ -114,3 +113,54 @@ Las pruebas usan hogares y dispositivos temporales, nunca luces/TDP/SMT reales.
 
 Código de este plugin bajo MIT. Ver LICENSE y THIRD-PARTY.md. Los protocolos y las
 fuentes abiertas se acreditan sin atribuirse la autoría de los proyectos de referencia.
+
+## Recuperación diferida 1.2 (2026-10-30)
+
+La recuperación de arranque y reanudación espera a logind, a una confirmación
+ligera de Steam (también con QAM cerrado) y a una identidad RGB estable 2 s.
+Después cuenta 10 s despierto y baja el brillo a cero durante 250 ms antes de
+restaurar una vez el perfil vigente. No reinicia USB ni guarda el apagado temporal.
+Si no confirma preparación en 60 s, o falla un comando, omite ese ciclo sin
+reintentar escrituras. Un perfil apagado o con brillo cero no se enciende.
+
+Una nueva suspensión, desconexión, cambio de identidad, edición manual o descarga
+cancela lo pendiente. El aviso previo a suspensión únicamente invalida tareas y
+solicita terminar el auxiliar: no consulta ni escribe HID ni espera procesos. No
+hay inhibidores, hooks instalados en el sistema ni servicios adicionales.
+
+Todo acceso real RGB se realiza en `/usr/bin/python3 -I` mediante un auxiliar de
+protocolo fijo; cada RPC tiene timeout y el cierre espera como máximo 150 ms por
+auxiliar. La lectura sin control usa un auxiliar que rechaza escrituras. El
+auxiliar escritor hereda el flock: si el kernel lo deja bloqueado, conserva el
+bloqueo y no se crean sustitutos. Un timeout no puede garantizar interrumpir una
+llamada no interrumpible del kernel. Si falla después del apagado temporal, los
+LED pueden quedar apagados hasta una intervención posterior.
+
+Para efectos estáticos los auxiliares de hardware son cortos. Para animaciones
+se reutiliza un único auxiliar mientras hay actividad para evitar lanzar veinte
+procesos por segundo. Cerrar QAM no detiene los efectos. Desactivar recuperación
+sin control activo detiene sus observadores; durante control manual activo se
+conserva solo la observación necesaria para detener ese control antes de dormir,
+sin autorizar ninguna restauración al despertar.
+
+La suscripción tipada logind utiliza dbus-next 0.2.3 (MIT), incluida en `vendor/`,
+y funciona fuera del Python congelado de Decky. No instala paquetes de sistema.
+El detector BOOTTIME/MONOTONIC invalida/deduplica una reanudación perdida, pero no
+inventa que logind o Steam estén preparados. La confirmación de Steam no usa sus
+hooks internos de suspensión ni depende de abrir el panel.
+
+La aceptación HID confirma el transporte, no el color físico. Este diseño no
+identifica por sí solo la causa de bloqueos previos y requiere pruebas reales de
+suspensión/reanudación después de las pruebas simuladas.
+
+### Corrección local de cierre 1.2
+
+La prueba real de recarga con recuperación activa reprodujo el SIGKILL de 5 s,
+no detectado por los tests del coordinador. Se corresponde con la incidencia
+[Decky #975](https://github.com/SteamDeckHomebrew/decky-loader/issues/975): al
+cerrarse IPC, el lector puede girar en EOF sin ceder el bucle y bloquear _unload.
+`loader_compat.py` reconoce esa implementación y estaciona únicamente el lector
+agotado dentro del proceso de ALLY RGB. No parchea archivos de Decky, POWER ni
+servicios; no sustituye una implementación con comprobación EOF nativa. Referencia
+adicional: https://github.com/bassobr/decky-ally-dsp/blob/main/py_modules/allydsp/deckyfix.py.
+Esto corrige un defecto de cierre observado, no prueba la causa de la suspensión.

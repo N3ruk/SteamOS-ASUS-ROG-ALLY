@@ -7,9 +7,11 @@ import { initial, zones, indexes, channelValue, zoneChannel, transitionChannel, 
 type State = {
   version: string; supported: boolean; active: boolean; paused: boolean; config: Config | null;
   actual: { product: string; hex: string[]; brightness: number; sleep: boolean | null } | null;
+  recovery?: {phase: string; seconds: number | null};
   editor_zone: Zone; conflicts: string[]; error: string; warning: string; battery: number | null;
 };
 const api = {
+  ready: callable<[], {phase: string; seconds: number | null}>('frontend_ready'),
   state: callable<[], State>('get_state'), apply: callable<[config: Config], State>('apply_config'),
   select: callable<[zone: Zone], State>('select_zone'),
 };
@@ -92,7 +94,9 @@ function Content() {
   const zoneConfig = config.zones[selected[0]];
   const effect = selected.every(i=>config.zones[i].effect===zoneConfig.effect) ? zoneConfig.effect : 'mixed';
   const status = error || state.error || state.warning ||
-    (state.conflicts.length ? 'Desactiva el otro gestor RGB: ' + state.conflicts.join(', ') :
+    (state.recovery?.phase === 'countdown' ? `Recuperando iluminación en ${state.recovery.seconds ?? 10} s…` :
+      state.recovery?.phase === 'waiting' ? 'Esperando a que la sesión y la iluminación estén preparadas…' :
+      state.conflicts.length ? 'Desactiva el otro gestor RGB: ' + state.conflicts.join(', ') :
       state.paused ? 'Pausado durante la suspensión.' : state.active ? 'ALLY RGB tiene el control.' : 'Sin control adquirido.');
   const displayColors = state.active && state.actual ? state.actual.hex : config.zones.map(zone=>zone.color);
   return <>
@@ -116,17 +120,26 @@ function Content() {
       {channels.map(([shift,label]) => <PanelSectionRow key={label}><SliderField label={label} value={channelValue(color,shift)} min={0} max={255} step={1} disabled={blocked} onChange={value => edit(transitionChannel(draft.current,endpoint,shift,value))}/></PanelSectionRow>)}
     </PanelSection>)}
     <PanelSection>
-      <PanelSectionRow><ToggleField label="Recuperar al despertar/encender" checked={config.resume} disabled={blocked} description="Guarda los ajustes y los restaura al despertar o encender, sin depender de los avisos de Steam." onChange={resume=>edit({resume})}/></PanelSectionRow>
+      <PanelSectionRow><ToggleField label="Recuperar al despertar/encender" checked={config.resume} disabled={blocked} description="Espera a que la sesión esté preparada y cuenta 10 segundos antes de apagar/restaurar las luces una vez; sin depender de los avisos de Steam." onChange={resume=>edit({resume})}/></PanelSectionRow>
     </PanelSection>
   </>;
 }
 
-export default definePlugin(() => ({
+export default definePlugin(() => {
+  closing = false;
+  // A cheap acknowledgement while the panel is closed too. No hardware access,
+  // power hooks or frontend timer that directly applies a lighting profile.
+  const acknowledge = () => { if (!closing) void api.ready().catch(() => {}); };
+  acknowledge();
+  const heartbeat = setInterval(acknowledge, 2000);
+  return ({
   name: 'ALLY RGB', titleView: <div className={staticClasses.Title}>ALLY RGB</div>,
   content: <Content/>, icon: <span style={{color:'#7be5cd'}}>◉</span>,
   onDismount() {
     closing = true;
+    clearInterval(heartbeat);
     // Backend owns sleep observation and shutdown, including late frontend unloads.
     void queue.close().catch(()=>{});
   },
-}));
+});
+});

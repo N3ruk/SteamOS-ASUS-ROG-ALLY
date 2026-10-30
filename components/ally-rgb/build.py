@@ -10,7 +10,7 @@ def build():
     version=json.loads((ROOT/'package.json').read_text())['version']
     names=['main.py','plugin.json','package.json','package-lock.json','rollup.config.js','tsconfig.json',
            'README.md','LICENSE','THIRD-PARTY.md','VERIFICACION.md','build.py']
-    for directory in ('py_modules','src','tests','licenses','dist'):
+    for directory in ('py_modules','src','tests','licenses','dist','vendor'):
         names += [p.relative_to(ROOT).as_posix() for p in sorted((ROOT/directory).rglob('*'))
                   if p.is_file() and '__pycache__' not in p.parts and p.suffix!='.pyc']
     data={name:(ROOT/name).read_bytes() for name in names}

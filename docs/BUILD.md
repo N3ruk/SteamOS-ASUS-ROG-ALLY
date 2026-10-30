@@ -27,7 +27,7 @@ La comprobación correcta de la lista relativa es:
 El build central empaqueta los instaladores originales fijados en `payloads/`; editar `components/` por sí solo **no cambia esos binarios**. Para modificarlos:
 
 - Escritorio: `cd components/ally-power; python3 build.py`; copiar su `.run` desde `dist/` a `payloads/` y actualizar versión/nombre en `engine.py` y `build.py` si cambia. Ver `REBUILD.md`.
-- ALLY RGB: en `components/ally-rgb`, ejecutar `npm ci`, `npm run typecheck`, `npm run build`, `python3 build.py`. Copiar `release/ALLY-RGB-1.0.0.zip` a `payloads/` y recalcular su entrada en `payloads/SHA256SUMS`. Es el ZIP nativo; el ZIP individual exterior se genera con el build de la suite.
+- ALLY RGB: en `components/ally-rgb`, ejecutar `npm ci`, `npm run typecheck`, `npm run build`, `python3 build.py`. Copiar `release/ALLY-RGB-1.2.zip` a `payloads/` y recalcular su entrada en `payloads/SHA256SUMS`. Es el ZIP nativo; el ZIP individual exterior se genera con el build de la suite.
 - Bluetooth: `cd components/bluetooth-trust-manager; python3 build.py`; copiar el `.run` de `dist/` a `payloads/`.
 - Decky: requiere Node/npm compatibles con las dependencias bloqueadas. En `components/ally-power-decky`, ejecutar `npm ci`, `npm run typecheck`, `npm run build`, `python3 build.py`. Copiar el ZIP de `release/` a `payloads/`. No hace falta Node en el equipo que instala.
 - Lanzadores: se empaquetan directamente desde `components/return-gaming`, `components/default-mode` e `installer/launchers.py`. No necesitan compilación.
@@ -62,33 +62,12 @@ python3 publish.py --owner TU_USUARIO --visibility public
 # O --visibility private: nunca se asume público por defecto.
 ```
 
-Debe ejecutarse sobre un checkout limpio, revisado y con commit en `main`. Comprueba los siete paquetes, crea `SteamOS-ASUS-ROG-ALLY` si no existe, conserva un `origin` ajeno sin modificarlo, empuja sin force y crea `v1.0.0` con los siete ZIP y `SHA256SUMS`. No imprime tokens, no modifica la configuración global de git y no reemplaza una release existente. Descarga de nuevo los ocho assets publicados y comprueba que sus hashes coincidan con los locales. Crear el repositorio exige permisos de GitHub adicionales a los de un conector que solo lee/escribe código en repositorios ya existentes.
+Debe ejecutarse sobre un checkout limpio, revisado y con commit en `main`. Comprueba los siete paquetes, crea `SteamOS-ASUS-ROG-ALLY` si no existe, conserva un `origin` ajeno sin modificarlo, empuja sin force y crea `v1.2` con los siete ZIP y `SHA256SUMS`. No imprime tokens, no modifica la configuración global de git y no reemplaza una release existente. Descarga de nuevo los ocho assets publicados y comprueba que sus hashes coincidan con los locales. Crear el repositorio exige permisos de GitHub adicionales a los de un conector que solo lee/escribe código en repositorios ya existentes.
 
-
-## Sustitución de paquetes conservando nombres
-
-Para renovar únicamente los tres paquetes Ally Power/centralizado conservando los
-otros tres ZIP existentes, reconstruye primero sus payloads fijados y hashes, y usa:
-
-```bash
-python3 build.py --only central ally-power ally-power-decky
-python3 verify_packages.py
-(cd release && sha256sum -c SHA256SUMS)
-```
-
-`--only` requiere los demás ZIP ya presentes para conservar la lista SHA256SUMS
-completa. El nombre exterior Decky sigue siendo `Ally-Power-Decky-1.1.0.zip`, pero
-el catálogo y el ZIP nativo del interior son 1.1.2. El `.run` de escritorio mantiene
-1.0.0 e incorpora el registro de topología CPU propio del equipo destino.
-
-Para una sustitución expresamente autorizada de assets de `v1.0.0`, no ejecutes
-`publish.py` (su política normal es rechazar una release existente). Tras revisar y
-empujar el commit a main, `gh release upload v1.0.0 --clobber` permite sustituir
-solo los tres ZIP revisados y SHA256SUMS. Conserva los restantes assets, tag,
-título, descripción y publicación original; no crees una release ni una discusión.
-Descarga de nuevo todos los assets y compara bytes y hashes antes de darla por terminada.
 
 ## Construir únicamente centralizado y ALLY RGB
+
+Después de reconstruir el ZIP nativo RGB y renovar su hash fijado:
 
 ```bash
 python3 build.py --only central ally-rgb
@@ -96,8 +75,17 @@ python3 verify_packages.py
 (cd release && sha256sum -c SHA256SUMS)
 ```
 
-Conserva los cinco individuales existentes byte a byte; el resultado contiene siete ZIP.
-Para una sustitución autorizada de la release existente se reemplazan únicamente el
-centralizado, ALLY-RGB-1.0.0.zip y SHA256SUMS. Su descripción puede incluir
-el catálogo completo, sin notas de actualización ni release nueva. Conserva tag, título,
-fechas de creación/publicación y destino originales; no fuerces un retag ni un push.
+Genera `SteamOS-ASUS-ROG-ALLY-1.2.zip` y `ALLY-RGB-1.2.zip`, y conserva los otros
+cinco individuales byte a byte. `--only` necesita esos cinco ZIP previos en `release/`;
+pueden descargarse de v1.0.0. Desde un checkout nuevo, `python3 build.py` reconstruye
+los siete a partir de las fuentes actuales (los cinco reconstruidos pueden cambiar
+su envoltorio/documentación, sin cambiar las aplicaciones fijadas).
+
+La versión del centralizado se define en `installer/version.py`, importada por build,
+interfaz y publicación; la versión RGB está en su package.json/backend y en el catálogo.
+El ZIP individual exterior RGB es un instalador `.run`: el ZIP nativo Decky está dentro
+del payload. El centralizado incluye exactamente ese mismo ZIP nativo, fuentes y licencias.
+
+La publicación 1.2 crea una release nueva `v1.2`, fijada al commit revisado. Conserva
+íntegra v1.0.0; no usa clobber, retag ni force push. Comprueba de nuevo los ocho assets
+(siete ZIP y SHA256SUMS) después de descargarlos. No incluye paquetes de prueba 1.3.x.

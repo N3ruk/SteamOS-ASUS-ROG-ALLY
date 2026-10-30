@@ -17,6 +17,7 @@ function harness(steamClient = {System: {}}) {
   const slots=[]; let cursor=0; const cleanups=[]; const timers=[];
   let queued=null; let queue;
   const api={
+    frontend_ready:async()=>({phase:"idle",seconds:null}),
     get_state:async()=>structuredClone(state),
     apply_config:async value=>{applied.push(structuredClone(value));state.config=structuredClone(value);state.editor_zone=value.zone;return structuredClone(state);},
     select_zone:async zone=>{state.config.zone=zone;state.editor_zone=zone;return structuredClone(state);},
@@ -66,7 +67,7 @@ function harness(steamClient = {System: {}}) {
     find(tree,label){return walk(tree,node=>node.props.label===label)[0];},
     all(tree,type){return walk(tree,node=>node.type===type);},
     async flush(){await queue.flush();},
-    async poll(){timers[0]();await new Promise(resolve=>setImmediate(resolve));},
+    async poll(){for(const timer of timers)timer();await new Promise(resolve=>setImmediate(resolve));},
     remount(){for(const cleanup of cleanups.splice(0))cleanup?.();slots.length=0;return render();},
   };
 }

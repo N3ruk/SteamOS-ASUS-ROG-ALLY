@@ -22,3 +22,7 @@
   histórica de protocolo, no un módulo que se instale ni una dependencia.
 
 El nombre ASUS/ROG identifica compatibilidad; este plugin no es software oficial de ASUS o Valve.
+
+- dbus-next 0.2.3, https://github.com/altdesktop/python-dbus-next, MIT.
+  Copia Python pura en `vendor/dbus_next`, licencia en `licenses/dbus-next-LICENSE`.
+  Solo se importa en el observador aislado de logind; no instala dependencias.

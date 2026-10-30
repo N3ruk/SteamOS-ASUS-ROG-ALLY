@@ -1,28 +1,58 @@
-# SteamOS ASUS ROG ALLY 1.0.0
+# SteamOS ASUS ROG ALLY 1.2
 
-Primera suite centralizada con elección explícita y explicaciones de seis componentes:
+Nueva release del instalador centralizado **1.2** y **ALLY RGB 1.2**. Los demás
+componentes conservan sus versiones y sus cinco paquetes anteriores sin cambios.
+La release v1.0.0 permanece disponible y no se reemplaza.
 
-1. Volver al modo Gaming 1.0.0: icono personalizado y confirmación de salida.
-2. Alternar arranque SteamOS 1.0.0: elige Gaming/Escritorio para próximos arranques.
-3. Ally Power Escritorio 1.0.0: controlador manual de TDP/SMT/núcleos/hilos.
-4. Ally Power Decky 1.1.0: control Gaming en tiempo real; solo se ofrece con Decky instalado y activo.
-5. Confianza Bluetooth 1.0.0: retirar confianza; orientado especialmente a problemas de autorización USB de mandos PS3.
+## ALLY RGB 1.2
 
-6. ALLY RGB 1.0.0: efectos, colores y velocidades independientes por zona, transición de dos colores y recuperación al despertar/encender; requiere Ally RC71L y Decky activo.
+- Recuperación opcional al arrancar/despertar: confirma disponibilidad de la sesión
+  y del dispositivo, espera 10 segundos y apaga/restaura una sola vez el perfil.
+- Cancelación por nueva suspensión, edición manual, cambio de dispositivo o descarga.
+- Acceso RGB aislado, timeouts y bloqueo compartido con sus propios escritores;
+  sin servicios nuevos, inhibidores ni reinicios USB.
+- Corrección de cierre IPC de Decky limitada al proceso RGB; no modifica el Loader.
+- Conserva brillo, colores, velocidades, transiciones y selección de las cuatro zonas.
+- Sin perfil previo válido no aplica luces al cargar. Sigue limitado a ROG Ally RC71L.
 
-## Assets
+## Componentes incluidos
 
-- `SteamOS-ASUS-ROG-ALLY-1.0.0.zip` — centralizado, los seis componentes.
-- `Volver-al-Modo-Gaming-1.0.0.zip` — individual.
-- `Alternar-Arranque-SteamOS-1.0.0.zip` — individual.
-- `Ally-Power-Escritorio-1.0.0.zip` — individual.
-- `Ally-Power-Decky-1.1.0.zip` — individual, incluye ZIP nativo Decky.
-- `Confianza-Bluetooth-1.0.0.zip` — individual.
-- `ALLY-RGB-1.0.0.zip` — individual con instalador autónomo, ZIP nativo Decky, fuentes y documentación.
+| Componente | Versión |
+|---|---|
+| Instalador centralizado | 1.2 |
+| ALLY RGB — Decky | 1.2 |
+| Volver al modo Gaming | 1.0.0 |
+| Alternar arranque SteamOS | 1.0.0 |
+| Ally Power Escritorio | 1.0.0 |
+| Ally Power Decky | 1.1.2 (envoltorio individual 1.1.0 conservado) |
+| Confianza Bluetooth | 1.0.0 |
+
+## Descargas
+
+- `SteamOS-ASUS-ROG-ALLY-1.2.zip` — centralizado con seis componentes opcionales.
+- `ALLY-RGB-1.2.zip` — instalador individual autónomo RGB; incluye el ZIP nativo Decky.
+- `Volver-al-Modo-Gaming-1.0.0.zip`.
+- `Alternar-Arranque-SteamOS-1.0.0.zip`.
+- `Ally-Power-Escritorio-1.0.0.zip`.
+- `Ally-Power-Decky-1.1.0.zip`.
+- `Confianza-Bluetooth-1.0.0.zip`.
 - `SHA256SUMS` — hashes de los siete ZIP.
 
-Extrae, permite ejecutar el `.run` y ejecútalo en escritorio **sin sudo**. Todos incluyen fuentes/licencias/documentación. El centralizado no cambia hardware, arranque ni Bluetooth al instalar. Las apps originales mantienen sus confirmaciones y permisos.
+Extrae el ZIP y ejecuta su `.run` en escritorio **sin sudo**. Todo empieza desmarcado.
+Cada paquete incluye fuentes, documentación y licencias, accesibles mediante `--extract`.
+La suite no instala ni activa Decky ni cambia arranque/TDP/SMT/Bluetooth por sí sola.
+Las apps originales conservan sus confirmaciones. El plugin RGB puede restaurar un perfil
+previo si su opción de recuperación estaba habilitada.
 
-ALLY RGB solo controla iluminación y puede recuperar ajustes previos al cargar si se activó esa opción.
+Para instalar RGB directamente desde Decky, extrae el `.run` con `--extract fuentes`:
+`fuentes/payloads/ALLY-RGB-1.2.zip` es el ZIP nativo de carpeta superior `ally-rgb/`.
+La suite no reemplaza un plugin RGB que esté controlando luces o recuperándose; en
+ese caso utiliza la gestión nativa de Decky. Los ajustes guardados se conservan.
 
-Requisitos: SteamOS actual; los controles de hardware requieren Ally/Ally X Z1/Z1 Extreme. La compatibilidad física con otros equipos y la interacción de Decky en Gaming siguen pendientes de validar. Véase documentación de verificación, convivencia de gestores y licencias del repositorio.
+## Comprobaciones y límites
+
+108 pruebas Python RGB y 14 JavaScript, TypeScript/Rollup, pruebas de la suite y
+verificación integral de los siete paquetes sin instalar componentes en el host.
+Recarga del backend RGB activo comprobada en 0,1 s sin SIGKILL. Las pruebas no
+acreditan lectura física de colores ni una suspensión real en Gaming; no se declara
+resuelta la causa de los bloqueos anteriores ni compatibilidad universal con otras Ally.

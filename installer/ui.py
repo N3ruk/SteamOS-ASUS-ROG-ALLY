@@ -1,6 +1,7 @@
 """Optional GTK4 selection UI; native KDE fallback lives in install.py."""
 import threading
 from . import engine
+from .version import VERSION
 
 
 def run(root, ids, failures):
@@ -17,7 +18,7 @@ def run(root, ids, failures):
             self.boxes = {}
 
         def activate(self, *_):
-            self.win = Gtk.ApplicationWindow(application=self, title='SteamOS ASUS ROG ALLY — Instalador 1.0.0')
+            self.win = Gtk.ApplicationWindow(application=self, title='SteamOS ASUS ROG ALLY — Instalador ' + VERSION)
             self.win.set_default_size(820, 680)
             self.win.connect('close-request', lambda *_: self.busy)
             outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)

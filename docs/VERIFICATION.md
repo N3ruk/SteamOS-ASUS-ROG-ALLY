@@ -1,10 +1,10 @@
 # Verificación y límites
 
-## Suite 1.0.0
+## Suite 1.2
 
-- 45 pruebas de selección, catálogo, integridad, instaladores y adaptadores Decky.
-- ALLY RGB: 90 pruebas Python y 14 JavaScript; TypeScript estricto y Rollup correctos.
-- 149 pruebas automatizadas de la suite y ALLY RGB en esta verificación. Los números
+- 46 pruebas de selección, catálogo, integridad, instaladores y adaptadores Decky.
+- ALLY RGB: 108 pruebas Python y 14 JavaScript; TypeScript estricto y Rollup correctos.
+- 168 pruebas automatizadas de la suite y ALLY RGB en esta verificación. Los números
   se refieren a casos de prueba, no a equipos físicos.
 
 La interfaz gráfica se prueba con todas las casillas desmarcadas. No ofrece Ally Power
@@ -25,7 +25,7 @@ no muestran el token de la conexión. Nada descarga dependencias ni habilita ser
 
 Los siete ZIP se extraen en temporal y se verifican `.run`, SHA256, manifiesto, catálogo,
 fuentes, licencias y `--check --json`, sin instalar. Se contrastan los payloads ejecutables
-con sus fuentes, incluyendo el ZIP nativo ALLY RGB 1.0.0. Los cinco individuales anteriores
+con sus fuentes, incluyendo el ZIP nativo ALLY RGB 1.2. Los cinco individuales anteriores
 se conservan byte a byte al construir `--only central ally-rgb`. El centralizado contiene
 los seis componentes y el individual RGB solo ese componente.
 
@@ -57,12 +57,18 @@ rechazo de paquetes ajenos, dimmer y ausencia de escrituras al consultar el esta
 El instalador descubre ese dispositivo sin abrir ni escribir hidraw. El éxito de HID
 significa aceptación por transporte; no equivale a readback físico de los colores.
 
-La recuperación backend se prueba con señales logind, avisos perdidos/duplicados,
-respaldo de relojes de suspensión, cierre del monitor, reenvío de brillo y colores fijos,
-dispositivo tardío, reintentos limitados y cancelación por edición/cierre. No se reintenta
-ante otro gestor, bloqueo o identidad inválida. La interfaz no requiere hooks Steam.
-El instalador también rechaza una recuperación pendiente aunque el hardware esté liberado.
-No se ha realizado un ciclo físico de suspensión para esta corrección.
+La recuperación backend se prueba con señales logind y respaldo de relojes, avisos
+perdidos/duplicados y preparación de Steam. Verifica 10 s sin escrituras previas,
+restauración única, suspensión durante cuenta atrás o entre apagado/encendido,
+cambios manuales que prevalecen, fallo sin reintento y descarga cancelable.
+Los auxiliares se prueban con E/S atascada y flock heredado; el modo de lectura
+rechaza escrituras. El guard de cierre IPC tiene pruebas de EOF, cancelación,
+idempotencia y respeto de implementaciones con comprobación EOF nativa.
+
+En el host RC71L/Decky 3.3.0 se comprobó aplicación y recarga con recuperación activa:
+el cierre terminó en 0,1 s sin SIGKILL y volvió a restaurar el perfil. Es aceptación
+del transporte, no lectura física de los LED. No se realizó suspensión real Gaming
+para esta versión; no se afirma corregida la causa original del bloqueo del sistema.
 
 ## Otras aplicaciones y límites
 

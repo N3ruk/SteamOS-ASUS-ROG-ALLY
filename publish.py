@@ -11,11 +11,11 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
-from build import NAMES
+from build import NAMES, VERSION
 
 ROOT = Path(__file__).resolve().parent
 REPO = 'SteamOS-ASUS-ROG-ALLY'
-TAG = 'v1.0.0'
+TAG = 'v' + VERSION
 
 
 def run(args, *, check=True, env=None):
@@ -70,7 +70,7 @@ def main():
         raise RuntimeError('La release ya existe. No se reemplaza ni se sobrescriben sus assets automáticamente.')
     commit = run(['git', 'rev-parse', 'HEAD']).stdout.strip()
     result = run([gh, 'release', 'create', TAG, '--repo', full, '--target', commit,
-                  '--title', 'SteamOS ASUS ROG ALLY 1.0.0', '--notes-file', 'docs/RELEASE.md',
+                  '--title', 'SteamOS ASUS ROG ALLY ' + VERSION, '--notes-file', 'docs/RELEASE.md',
                   *map(str, assets)])
     info = json.loads(run([gh, 'release', 'view', TAG, '--repo', full, '--json', 'assets,url']).stdout)
     if {a['name'] for a in info['assets']} != {p.name for p in assets}:

@@ -27,8 +27,8 @@ CATALOG = {
         'description': 'Plugin para Gaming: cambios en tiempo real; TDP del plugin solo al activar «TDP de Steam desactivado». SMT independiente. No añade botones Aplicar, Liberar ni Restaurar.',
         'requirements': 'Mismo hardware que Ally Power; Decky instalado y activo, API local compatible y python3-aiohttp. No instala Decky.'},
     'ally-rgb': {
-        'name': 'ALLY RGB — Decky', 'version': '1.0.0',
-        'description': 'Iluminación de cuatro zonas con efectos, colores y velocidades independientes; transición de dos colores y recuperación opcional al despertar/encender. No controla potencia ni ventiladores.',
+        'name': 'ALLY RGB — Decky', 'version': '1.2',
+        'description': 'Iluminación de cuatro zonas con efectos, colores y velocidades independientes; transición de dos colores y recuperación opcional al despertar/encender tras preparación y espera de 10 segundos. No controla potencia ni ventiladores.',
         'requirements': 'ROG Ally RC71L con SteamOS x86_64 y LED sysfs de cuatro zonas. Decky instalado y activo, python3-aiohttp. Ally X no validada; no instala Decky ni detiene otros gestores RGB.'},
     'bluetooth-trust-manager': {
         'name': 'Confianza Bluetooth', 'version': '1.0.0',
@@ -38,7 +38,7 @@ CATALOG = {
 PAYLOADS = {
     'ally-power': 'Ally-Power-1.0.0-SteamOS-x86_64.run',
     'ally-power-decky': 'Ally-Power-Decky-1.1.0.zip',
-    'ally-rgb': 'ALLY-RGB-1.0.0.zip',
+    'ally-rgb': 'ALLY-RGB-1.2.zip',
     'bluetooth-trust-manager': 'Confianza-Bluetooth-1.0.0-SteamOS.run',
 }
 

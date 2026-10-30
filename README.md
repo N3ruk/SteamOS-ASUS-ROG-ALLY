@@ -1,10 +1,10 @@
-# SteamOS ASUS ROG ALLY
+# SteamOS ASUS ROG ALLY 1.2
 
 Instalador **centralizado y opcional**, con seis componentes independientes, documentación y paquetes individuales. No instala OpenClaw ni depende de él.
 
 ## Descargar e instalar
 
-En la release hay **siete ZIP**: uno centralizado y uno por componente. Cada ZIP incluye un instalador `.run` autónomo con código fuente, licencias y documentación dentro.
+En la [release 1.2](https://github.com/N3ruk/SteamOS-ASUS-ROG-ALLY/releases/tag/v1.2) hay **siete ZIP**: uno centralizado y uno por componente. Cada ZIP incluye un instalador `.run` autónomo con código fuente, licencias y documentación dentro.
 
 1. En modo escritorio, extrae el ZIP.
 2. Si hace falta, marca el `.run` como ejecutable en **Propiedades → Permisos**.
@@ -40,9 +40,9 @@ El centralizado no cambia el arranque, TDP, SMT ni dispositivos Bluetooth durant
 ## Comprobar sin instalar
 
 ```bash
-bash SteamOS-ASUS-ROG-ALLY-1.0.0-SteamOS.run --check
-bash SteamOS-ASUS-ROG-ALLY-1.0.0-SteamOS.run --verify
-bash SteamOS-ASUS-ROG-ALLY-1.0.0-SteamOS.run --extract fuentes
+bash SteamOS-ASUS-ROG-ALLY-1.2-SteamOS.run --check
+bash SteamOS-ASUS-ROG-ALLY-1.2-SteamOS.run --verify
+bash SteamOS-ASUS-ROG-ALLY-1.2-SteamOS.run --extract fuentes
 ```
 
 `--check` enumera disponibles/no disponibles, no inicia apps ni toca hardware. Devuelve 0 si al menos un componente es elegible, 1 si ninguno lo es o hay un error de integridad. `--verify` solo comprueba integridad.
@@ -58,6 +58,8 @@ bash SteamOS-ASUS-ROG-ALLY-1.0.0-SteamOS.run --extract fuentes
 
 Código propio bajo MIT; **no** se aplica esa licencia a todo el contenido indiscriminadamente. RyzenAdj y recursos de terceros conservan sus licencias; los iconos PNG aportados por el usuario no se relicencian como MIT. Véase [THIRD-PARTY.md](THIRD-PARTY.md).
 
-Los nombres de descarga de la distribución 1.0.0 se conservan. El individual
-`Ally-Power-Decky-1.1.0.zip` contiene el plugin nativo 1.1.2; consulta el catálogo
-y SHA256SUMS del contenido, no deduzcas la versión interna del nombre exterior.
+El centralizado y ALLY RGB se distribuyen como **1.2**. ALLY RGB incluye recuperación
+cancelable tras preparación y 10 segundos de espera, E/S aislada y corrección local
+del cierre IPC de Decky. Los demás componentes conservan versiones y paquetes.
+El individual `Ally-Power-Decky-1.1.0.zip` contiene el plugin nativo 1.1.2;
+consulta su catálogo. La release anterior permanece disponible y no se sobrescribe.

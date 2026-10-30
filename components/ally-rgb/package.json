@@ -1,6 +1,6 @@
 {
   "name": "ally-rgb",
-  "version": "1.0.0",
+  "version": "1.2",
   "description": "Iluminaci\u00f3n de cuatro zonas para ROG Ally en SteamOS. Sin control de potencia.",
   "type": "module",
   "private": true,

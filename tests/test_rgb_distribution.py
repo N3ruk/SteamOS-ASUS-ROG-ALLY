@@ -10,7 +10,8 @@ import zipfile
 from installer import engine, decky, rgb_decky
 
 ROOT=Path(__file__).resolve().parents[1]
-PAYLOAD=ROOT/'payloads/ALLY-RGB-1.0.0.zip'
+VERSION=engine.CATALOG['ally-rgb']['version']
+PAYLOAD=ROOT/'payloads'/engine.PAYLOADS['ally-rgb']
 
 
 class RGBPreflightTests(unittest.TestCase):
@@ -61,8 +62,8 @@ class RGBPreflightTests(unittest.TestCase):
 class RGBPayloadTests(unittest.TestCase):
     def test_pinned_native_payload_has_exact_identity_version_and_source_manifest(self):
         digest=hashlib.sha256(PAYLOAD.read_bytes()).hexdigest()
-        rgb_decky.check_payload(PAYLOAD,digest,'1.0.0')
-        with self.assertRaisesRegex(RuntimeError,'SHA256'):rgb_decky.check_payload(PAYLOAD,'bad','1.0.0')
+        rgb_decky.check_payload(PAYLOAD,digest,VERSION)
+        with self.assertRaisesRegex(RuntimeError,'SHA256'):rgb_decky.check_payload(PAYLOAD,'bad',VERSION)
         with self.assertRaisesRegex(RuntimeError,'versión'):rgb_decky.check_payload(PAYLOAD,digest,'9.0.0')
 
     def test_unsafe_extra_and_changed_manifest_bytes_are_rejected(self):
@@ -72,7 +73,7 @@ class RGBPayloadTests(unittest.TestCase):
                 with zipfile.ZipFile(PAYLOAD) as src,zipfile.ZipFile(path,'w') as dst:
                     for item in src.infolist():dst.writestr(item,src.read(item.filename))
                     dst.writestr(name,content)
-                with self.assertRaises(RuntimeError):rgb_decky.check_payload(path,hashlib.sha256(path.read_bytes()).hexdigest(),'1.0.0')
+                with self.assertRaises(RuntimeError):rgb_decky.check_payload(path,hashlib.sha256(path.read_bytes()).hexdigest(),VERSION)
 
     def test_installed_file_verification_distinguishes_same_version_old_bytes(self):
         with tempfile.TemporaryDirectory() as d,patch.dict(os.environ,{'DECKY_PLUGIN_DIR':d}):
@@ -85,11 +86,11 @@ class RGBPayloadTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d);folder=root/'plugins/ally-rgb';folder.mkdir(parents=True)
             (folder/'plugin.json').write_text(json.dumps({'name':'ALLY RGB','author':'SteamOS Ally contributors'}))
-            (folder/'package.json').write_text(json.dumps({'version':'1.0.0'}))
+            (folder/'package.json').write_text(json.dumps({'version':VERSION}))
             (folder/'main.py').write_text('old source')
             settings=root/'settings.json';settings.write_text('private user preferences')
             with patch.dict(os.environ,{'DECKY_PLUGIN_DIR':str(root/'plugins'),'XDG_STATE_HOME':str(root/'state with spaces')}):
-                target=decky.backup_previous('1.0.0',folder_name='ally-rgb',plugin_name='ALLY RGB',author='SteamOS Ally contributors',backup_name='ALLY-RGB')
+                target=decky.backup_previous(VERSION,folder_name='ally-rgb',plugin_name='ALLY RGB',author='SteamOS Ally contributors',backup_name='ALLY-RGB')
             with zipfile.ZipFile(target) as archive:self.assertEqual(archive.read('ally-rgb/main.py'),b'old source')
             self.assertEqual(settings.read_text(),'private user preferences')
 
@@ -101,11 +102,11 @@ class RGBProtocolTests(unittest.IsolatedAsyncioTestCase):
             if route=='loader/get_plugins':return [previous] if previous else []
             if route=='loader/call_plugin_method':return {'version':previous['version'],'active':active,'paused':paused,'recovery':{'pending':recovering}}
         client.call=AsyncMock(side_effect=call)
-        client.prompt=AsyncMock(return_value=['ALLY RGB','1.0.0','request','digest',2 if previous else 0])
+        client.prompt=AsyncMock(return_value=['ALLY RGB',VERSION,'request','digest',2 if previous else 0])
         return client
 
     async def test_only_requested_identity_is_prepared_and_confirmed_later(self):
-        client=self.client();request,backup=await client.prepare('/tmp/payload.zip','digest','1.0.0')
+        client=self.client();request,backup=await client.prepare('/tmp/payload.zip','digest',VERSION)
         self.assertEqual(request,'request');self.assertIsNone(backup)
         self.assertNotIn('utilities/confirm_plugin_install',[c.args[0] for c in client.call.await_args_list])
         self.assertNotIn('apply_config',str(client.call.await_args_list))
@@ -113,47 +114,55 @@ class RGBProtocolTests(unittest.IsolatedAsyncioTestCase):
     async def test_wrong_prompt_never_returns_a_confirmable_request(self):
         for index,value in [(0,'Other'),(1,'9.0.0'),(2,''),(3,'bad'),(4,2)]:
             client=self.client();client.prompt.return_value[index]=value
-            with self.assertRaisesRegex(RuntimeError,'no coincide'):await client.prepare('/tmp/payload.zip','digest','1.0.0')
+            with self.assertRaisesRegex(RuntimeError,'no coincide'):await client.prepare('/tmp/payload.zip','digest',VERSION)
             self.assertNotIn('utilities/confirm_plugin_install',str(client.call.await_args_list))
 
     async def test_active_or_paused_existing_rgb_is_never_stopped_or_updated(self):
         for active,paused in [(True,False),(False,True)]:
             client=self.client({'name':'ALLY RGB','version':'1.2.0'},active,paused)
             with patch.object(decky,'backup_previous') as backup:
-                with self.assertRaisesRegex(RuntimeError,'controla el hardware'):await client.prepare('/tmp/payload.zip','digest','1.0.0')
+                with self.assertRaisesRegex(RuntimeError,'controla el hardware'):await client.prepare('/tmp/payload.zip','digest',VERSION)
                 backup.assert_not_called()
             self.assertNotIn('utilities/install_plugin',[c.args[0] for c in client.call.await_args_list])
 
     async def test_disabled_or_unknown_existing_rgb_is_not_replaced(self):
-        for previous in [{'name':'ALLY RGB','version':'1.0.0','disabled':True},{'name':'ALLY RGB','version':'9.0.0'}]:
+        for previous in [{'name':'ALLY RGB','version':VERSION,'disabled':True},{'name':'ALLY RGB','version':'9.0.0'}]:
             client=self.client(previous)
-            with self.assertRaises(RuntimeError):await client.prepare('/tmp/payload.zip','digest','1.0.0')
+            with self.assertRaises(RuntimeError):await client.prepare('/tmp/payload.zip','digest',VERSION)
             self.assertNotIn('utilities/install_plugin',[c.args[0] for c in client.call.await_args_list])
 
     async def test_pending_wake_recovery_is_not_interrupted_by_installer(self):
-        client=self.client({'name':'ALLY RGB','version':'1.0.0'},recovering=True)
+        client=self.client({'name':'ALLY RGB','version':VERSION},recovering=True)
         with patch.object(rgb_decky.decky,'backup_previous') as backup:
             with self.assertRaisesRegex(RuntimeError,'recuperación pendiente'):
-                await client.prepare('/tmp/payload.zip','digest','1.0.0')
+                await client.prepare('/tmp/payload.zip','digest',VERSION)
             backup.assert_not_called()
         self.assertNotIn('utilities/install_plugin',[c.args[0] for c in client.call.await_args_list])
 
     async def test_recognized_inactive_update_backs_up_before_request(self):
         client=self.client({'name':'ALLY RGB','version':'1.2.0'})
         with patch.object(decky,'backup_previous',return_value=Path('/tmp/copy.zip')) as backup:
-            request,path=await client.prepare('/tmp/payload.zip','digest','1.0.0')
+            request,path=await client.prepare('/tmp/payload.zip','digest',VERSION)
         self.assertEqual(request,'request');self.assertEqual(path,Path('/tmp/copy.zip'))
         backup.assert_called_once_with('1.2.0',folder_name='ally-rgb',plugin_name='ALLY RGB',author='SteamOS Ally contributors',backup_name='ALLY-RGB')
+
+    async def test_inactive_development_and_previous_versions_can_migrate_to_distribution(self):
+        for version in ('1.0.0','1.3.1','1.2'):
+            with self.subTest(version=version):
+                client=self.client({'name':'ALLY RGB','version':version})
+                with patch.object(decky,'backup_previous',return_value=Path('/tmp/copy.zip')) as backup:
+                    await client.prepare('/tmp/payload.zip','digest',VERSION)
+                self.assertEqual(backup.call_args.args[0],version)
 
     async def test_ready_reconnects_read_only_and_requires_installed_bytes_not_just_version(self):
         ctx=Mock();ctx.__aenter__=AsyncMock(return_value=Mock());ctx.__aexit__=AsyncMock(return_value=False)
         session=Mock();session.ws_connect.return_value=ctx
         client=Mock();client.call=AsyncMock(side_effect=[
-            [{'name':'ALLY RGB','version':'1.0.0'}],{'version':'1.0.0'},
-            [{'name':'ALLY RGB','version':'1.0.0'}],{'version':'1.0.0'}])
+            [{'name':'ALLY RGB','version':VERSION}],{'version':VERSION},
+            [{'name':'ALLY RGB','version':VERSION}],{'version':VERSION}])
         with patch.object(rgb_decky,'Client',return_value=client),patch.object(rgb_decky,'installed_matches',side_effect=[False,True]):
-            result=await rgb_decky.inspect_ready(session,'fake-memory-only','1.0.0',PAYLOAD,attempts=2,interval=0)
-        self.assertEqual(result['version'],'1.0.0')
+            result=await rgb_decky.inspect_ready(session,'fake-memory-only',VERSION,PAYLOAD,attempts=2,interval=0)
+        self.assertEqual(result['version'],VERSION)
         self.assertTrue(all(c.args[0].startswith('loader/') for c in client.call.await_args_list))
 
     async def test_confirmation_is_sent_once_even_if_the_frontend_reconnects(self):
@@ -165,8 +174,8 @@ class RGBProtocolTests(unittest.IsolatedAsyncioTestCase):
         context=Mock();context.__aenter__=AsyncMock(return_value=session);context.__aexit__=AsyncMock(return_value=False)
         client=Mock();client.prepare=AsyncMock(return_value=('request',None));client.call=AsyncMock(side_effect=rgb_decky.ConnectionLost('closed'))
         with patch.object(decky,'availability',return_value=(True,'')),patch.object(aiohttp,'ClientSession',return_value=context), \
-             patch.object(rgb_decky,'Client',return_value=client),patch.object(rgb_decky,'inspect_ready',new_callable=AsyncMock,return_value={'version':'1.0.0'}) as ready:
-            result=await rgb_decky.install(PAYLOAD,hashlib.sha256(PAYLOAD.read_bytes()).hexdigest(),'1.0.0')
+             patch.object(rgb_decky,'Client',return_value=client),patch.object(rgb_decky,'inspect_ready',new_callable=AsyncMock,return_value={'version':VERSION}) as ready:
+            result=await rgb_decky.install(PAYLOAD,hashlib.sha256(PAYLOAD.read_bytes()).hexdigest(),VERSION)
         client.call.assert_awaited_once_with('utilities/confirm_plugin_install','request')
         ready.assert_awaited_once();self.assertIn('backend comprobado',result)
 
@@ -179,5 +188,5 @@ class RGBProtocolTests(unittest.IsolatedAsyncioTestCase):
         context=Mock();context.__aenter__=AsyncMock(return_value=session);context.__aexit__=AsyncMock(return_value=False)
         with patch.object(decky,'availability',return_value=(True,'')),patch.object(aiohttp,'ClientSession',return_value=context):
             with self.assertRaises(RuntimeError) as error:
-                await rgb_decky.install(PAYLOAD,hashlib.sha256(PAYLOAD.read_bytes()).hexdigest(),'1.0.0')
+                await rgb_decky.install(PAYLOAD,hashlib.sha256(PAYLOAD.read_bytes()).hexdigest(),VERSION)
         self.assertNotIn('fake-sensitive-marker',str(error.exception))

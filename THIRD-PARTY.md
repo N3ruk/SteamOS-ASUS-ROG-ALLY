@@ -33,3 +33,7 @@ con fuentes TypeScript/Python y licencias en su subdirectorio. React y UI se pro
 por Decky; no se distribuye `node_modules`. Referencias al ABI de la Ally, HueSync y
 los avisos completos en [components/ally-rgb/THIRD-PARTY.md](components/ally-rgb/THIRD-PARTY.md).
 No se incluye código de HueSync, pyserial, controladores HID o gestores de potencia en este plugin.
+
+La copia Python pura de dbus-next 0.2.3 (MIT) está en `components/ally-rgb/vendor/dbus_next`,
+con licencia en `components/ally-rgb/licenses/dbus-next-LICENSE`. Solo la importa el
+observador aislado de logind; no instala dependencias de sistema.

@@ -14,9 +14,9 @@ import stat
 import tarfile
 import zipfile
 from installer.engine import CATALOG, PAYLOADS
+from installer.version import VERSION
 
 ROOT = Path(__file__).resolve().parent
-VERSION = '1.0.0'
 EPOCH = 1792627200  # Fixed release date, 2026-10-22 UTC.
 NAMES = {
     'central': 'SteamOS-ASUS-ROG-ALLY-' + VERSION,
@@ -24,7 +24,7 @@ NAMES = {
     'default-mode': 'Alternar-Arranque-SteamOS-1.0.0',
     'ally-power': 'Ally-Power-Escritorio-1.0.0',
     'ally-power-decky': 'Ally-Power-Decky-1.1.0',
-    'ally-rgb': 'ALLY-RGB-1.0.0',
+    'ally-rgb': 'ALLY-RGB-1.2',
     'bluetooth-trust-manager': 'Confianza-Bluetooth-1.0.0',
 }
 EXCLUDED = {'.git', '__pycache__', 'node_modules', '.reference', 'backups', 'release'}

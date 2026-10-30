@@ -1,4 +1,4 @@
-# ALLY RGB — Decky 1.0.0
+# ALLY RGB — Decky 1.2
 
 Control exclusivo de iluminación para **ASUS ROG Ally RC71L con SteamOS x86_64**.
 No modifica TDP, SMT, núcleos/hilos, carga, ventiladores, EC ni MCU. Ally X no está validada.
@@ -27,8 +27,8 @@ el efecto Batería no se aplica con un porcentaje inventado.
 
 ## Instalar
 
-Selecciona **ALLY RGB — Decky** en el centralizado o descarga **ALLY-RGB-1.0.0.zip**,
-extrae y ejecuta **ALLY-RGB-1.0.0-SteamOS.run** desde escritorio, sin sudo.
+Selecciona **ALLY RGB — Decky** en el centralizado o descarga **ALLY-RGB-1.2.zip**,
+extrae y ejecuta **ALLY-RGB-1.2-SteamOS.run** desde escritorio, sin sudo.
 Nada está seleccionado por defecto. Solo se ofrece si Decky está instalado y activo,
 existe `python3-aiohttp` y el kernel expone los cuatro colores empaquetados esperados.
 El instalador no instala Decky, Python ni controladores adicionales.
@@ -37,10 +37,10 @@ El individual es un instalador autónomo, no el ZIP nativo que espera directamen
 Para obtener el ZIP nativo y las fuentes sin instalar:
 
 ```bash
-bash ALLY-RGB-1.0.0-SteamOS.run --extract fuentes
+bash ALLY-RGB-1.2-SteamOS.run --extract fuentes
 ```
 
-El archivo **fuentes/payloads/ALLY-RGB-1.0.0.zip** sí es el ZIP nativo de Decky,
+El archivo **fuentes/payloads/ALLY-RGB-1.2.zip** sí es el ZIP nativo de Decky,
 con carpeta superior `ally-rgb/`. Usa Instalar plugin desde ZIP de Decky si prefieres la vía manual.
 
 La suite verifica SHA256, identidad, versión y manifiesto del ZIP antes de solicitar la
@@ -56,13 +56,25 @@ anteriores no se aplican colores al cargar. Si ya tenías una configuración gua
 **Recuperar al despertar/encender** activado, el plugin la restaura al cargar Decky,
 incluso sin abrir su panel. Conserva estado apagado, brillo y los cuatro efectos/colores/velocidades.
 Desactivar la opción impide la restauración automática, pero no borra los ajustes.
-La recuperación al despertar pertenece al backend: señales de systemd-logind y respaldo
-con los relojes Linux BOOTTIME/MONOTONIC, sin depender de los avisos internos de Steam.
-Invalida las cachés y reenvía brillo y cuatro colores, también con efectos fijos. Reintenta
-los errores transitorios del dispositivo durante unos 10 segundos; no insiste contra otro
-gestor, bloqueo, trigger o identidad no válida. Una edición manual o descarga cancela los
-reintentos. El monitor termina con el backend, sin servicios ni configuración adicionales.
-No controla las luces durante la suspensión.
+La recuperación pertenece al backend: suscripción tipada de systemd-logind y respaldo
+BOOTTIME/MONOTONIC. No depende de los avisos internos de suspensión de Steam, pero
+exige una confirmación ligera de que Steam responde, también con QAM cerrado.
+Espera a logind despierto/sin apagado y a una identidad RGB estable 2 s; después cuenta
+10 s despierto y hace una sola secuencia de brillo cero, pausa de 250 ms y restauración.
+No reinicia USB ni guarda el apagado temporal. Si no confirma preparación en 60 s,
+o falla un comando, omite ese ciclo sin reintentar escrituras. Un perfil apagado o con
+brillo cero no se enciende. Nueva suspensión, edición manual o descarga cancela la acción.
+
+La E/S real RGB vive en un auxiliar con timeout, identidad comprobada y bloqueo heredado.
+No consulta/escribe HID desde el aviso previo a suspensión ni añade inhibidores, servicios
+o hooks del sistema. Un auxiliar no terminable impide lanzar sustitutos. Durante control
+manual activo se mantiene observación de seguridad aunque la recuperación esté apagada,
+sin autorizar restauración al despertar. Si falla después del apagado temporal, los LED
+pueden quedar apagados hasta una intervención posterior.
+
+Incluye una adaptación de cierre para [Decky #975](https://github.com/SteamDeckHomebrew/decky-loader/issues/975),
+limitada al proceso RGB: evita el bucle IPC en EOF sin modificar el Loader ni otros plugins.
+No sustituye una implementación que ya contenga comprobación EOF nativa.
 
 No uses otro escritor RGB a la vez. ALLY RGB detecta HueSync, HHD, Ally Center, asusd
 u OpenRGB y rechaza competir; no los detiene ni desinstala automáticamente. Detección por procesos
@@ -91,8 +103,8 @@ y `max_brightness=255`. En kernels compatibles escribe `multi_intensity` (cuatro
 RRGGBB) y `brightness`. Cuando el kernel recorta esos valores a 255 utiliza un fallback
 hidraw limitado a color y brillo RGB: USB ASUS 0b05:1abe, interfaz 02 del mismo dispositivo,
 descriptor e identidad comprobados. No modifica kernel, firmware, botones ni potencia.
-La comprobación del instalador descubre esa interfaz sin enviar órdenes. Runtime Python
-stdlib, sin `termios`, pyserial ni bibliotecas HID externas.
+La comprobación del instalador descubre esa interfaz sin enviar órdenes. E/S con Python stdlib y observador D-Bus con dbus-next 0.2.3 vendorizado (MIT);
+sin instalar paquetes, `termios`, pyserial ni bibliotecas HID externas.
 
 En HID el estado informa aceptación del transporte, no lectura física del color; conserva
 el último frame enviado y detecta cambios del estado sysfs/dispositivo, además de gestores
@@ -103,7 +115,7 @@ conocidos. No garantiza detectar escritores HID desconocidos. No reinstala contr
 - [Verificación y límites de la suite](VERIFICATION.md).
 - [Licencias y referencias](../components/ally-rgb/THIRD-PARTY.md).
 
-104 pruebas automatizadas (90 Python y 14 JavaScript), compilación TypeScript/Rollup y carga
+122 pruebas automatizadas (108 Python y 14 JavaScript), compilación TypeScript/Rollup y carga
 real del backend/frontend comprobadas. Se observó por readback que los efectos ya activos continúan
 al seleccionar otra zona. No equivale a verificar visualmente los colores, un ciclo físico de
 suspensión/encendido o una instalación nueva en cualquier modelo de Ally.

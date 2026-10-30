@@ -313,7 +313,7 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
         self.device=DeviceFixture(root)
         self.others=[]
         self.manager=rgb.Manager(root/'settings',self.device.hw,
-            rgb.RGBLock(root/'lock',os.geteuid()),lambda:self.others,lambda:75)
+            rgb.RGBLock(root/'lock',os.geteuid()),lambda:self.others,lambda:75,recovery_delay=0,stable_time=0,off_gap=0,poll=.001,wait_limit=.08)
 
     async def asyncTearDown(self):
         await self.manager.release()
@@ -322,7 +322,7 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
     def new_manager(self):
         root = Path(self.tmp.name)
         return rgb.Manager(root/'settings', self.device.hw,
-                           rgb.RGBLock(root/'lock', os.geteuid()), lambda:self.others, lambda:75)
+                           rgb.RGBLock(root/'lock', os.geteuid()), lambda:self.others, lambda:75,recovery_delay=0,stable_time=0,off_gap=0,poll=.001,wait_limit=.08)
 
     async def test_editing_another_zone_preserves_animation_phase_and_single_worker(self):
         clock = [100.]
@@ -397,7 +397,7 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
         try:
             with patch.object(other.hw, 'write', wraps=other.hw.write) as write:
                 await other.restore_startup()
-                self.assertEqual(write.call_count, 1)
+                self.assertEqual(write.call_count, 2)
             self.assertEqual(other.target, rgb.validate(cfg))
             self.assertEqual(other.hw.state()['brightness'], 69)
             self.assertTrue((await other.state())['active'])
@@ -440,19 +440,26 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
     async def test_late_device_restores_and_get_state_remains_read_only(self):
         self.manager.settings.save(config(brightness=20))
         other = self.new_manager()
-        state = self.device.hw.state()
-        with patch.object(other.hw, 'state', side_effect=[FileNotFoundError(), state]), \
-             patch.object(other, 'apply', new_callable=unittest.mock.AsyncMock) as apply:
-            await other.restore_startup(attempts=2, interval=0)
-            apply.assert_awaited_once_with(other.settings.config, automatic=True)
-        with patch.object(other.hw, 'write', side_effect=AssertionError('status writes')):
-            await other.state()
+        original = self.device.hw.state
+        calls = [0]
+        def late():
+            calls[0] += 1
+            if calls[0] == 1: raise FileNotFoundError()
+            return original()
+        try:
+            with patch.object(other.hw, 'state', side_effect=late):
+                await other.restore_startup()
+            self.assertEqual(other.target['brightness'],20)
+            with patch.object(other.hw, 'write', side_effect=AssertionError('status writes')):
+                await other.state()
+        finally:
+            await other.shutdown()
 
     async def test_edit_cancels_delayed_startup_so_old_config_cannot_win(self):
         self.manager.settings.save(config(brightness=5))
         original = self.device.hw.state
         with patch.object(self.device.hw, 'state', side_effect=FileNotFoundError()):
-            self.manager.startup_task = asyncio.create_task(self.manager.restore_startup(interval=1))
+            self.manager.startup_task = asyncio.create_task(self.manager.restore_startup())
             await asyncio.sleep(.01)
         await self.manager.apply(config(brightness=80))
         self.assertIsNone(self.manager.startup_task)

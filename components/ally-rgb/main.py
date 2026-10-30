@@ -6,14 +6,18 @@ import decky
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from py_modules.rgb import Manager
 from py_modules.power import SleepMonitor
+from py_modules.loader_compat import guard_decky_socket
 
 
 class Plugin:
     async def _main(self):
-        self.manager = Manager(Path(decky.DECKY_PLUGIN_SETTINGS_DIR), logger=decky.logger)
-        self.manager.power_monitor = SleepMonitor(self.manager.power_event, logger=decky.logger)
-        self.manager.power_monitor.start()
-        self.manager.startup_task = asyncio.create_task(self.manager.restore_startup())
+        self.manager = Manager(Path(decky.DECKY_PLUGIN_SETTINGS_DIR), logger=decky.logger, monitor_factory=SleepMonitor)
+        self.manager.loader_eof_guard = guard_decky_socket()
+        decky.logger.info("RGB process-local Decky EOF guard: %s", self.manager.loader_eof_guard)
+        await self.manager.start()
+
+    async def frontend_ready(self):
+        return self.manager.frontend_ready()
 
     async def get_state(self):
         return await self.manager.state()

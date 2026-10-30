@@ -8,9 +8,10 @@ import shutil
 import subprocess
 import sys
 from installer import engine
+from installer.version import VERSION
 
 ROOT = Path(__file__).resolve().parent
-TITLE = 'SteamOS ASUS ROG ALLY — Instalador 1.0.0'
+TITLE = 'SteamOS ASUS ROG ALLY — Instalador ' + VERSION
 
 
 def message(text, error=False):

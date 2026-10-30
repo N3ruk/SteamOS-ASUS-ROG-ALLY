@@ -20,3 +20,10 @@
 - Batería del equipo: BAT0/BATn de sistema; no elegir el primer power_supply Battery. Excluir scope Device, admitir BAT0 sin scope y devolver None ante ausencia/lectura no válida. Porcentaje y efecto Batería deben usar el mismo lector.
 
 - Recuperación de suspensión pertenece al backend: logind más respaldo BOOTTIME/MONOTONIC, sin depender de hooks Steam. Invalidar transporte/caché y reenviar brillo+cuatro zonas incluso fijas; reintentos limitados solo por dispositivo transitorio, cancelables por edición/cierre y sin competir con otros escritores. No añadir servicios/arranque ni usar hora civil para detectar suspensión.
+
+- Desde 1.2 la recuperación es una sola operación, tras preparación verificable
+  y 10 s; no reintroducir reintentos de escritura ni I/O en PrepareForSleep.
+  Los accesos reales viven en io_worker; get_state sin propiedad usa modo
+  read-only. Los auxiliares heredan el flock y los cierres son acotados; un
+  auxiliar no terminable impide sustituirlo. El frontend solo confirma vida,
+  nunca dispara escrituras temporizadas ni depende del panel abierto.

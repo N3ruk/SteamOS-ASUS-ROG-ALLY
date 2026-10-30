@@ -167,6 +167,7 @@ class HardwareFallbackTests(unittest.TestCase):
         (root/'device').mkdir()
         (self.fixture.path/'device').symlink_to(root/'device')
         self.transport = Mock()
+        self.transport.locator.return_value = (Path('/temporary-rgb-not-a-device'), '/fake/device', 42)
         self.hw = rgb.Hardware(self.fixture.path, self.fixture.product, self.transport)
 
     def test_discovery_and_get_state_never_send_reports(self):
