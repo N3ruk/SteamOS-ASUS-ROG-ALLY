@@ -18,3 +18,5 @@
 
 - Colección1.3 autorizada por Carlos: nuevo release v1.3 por integrar Video Output ALLY for DOCKs1.0. No modificar releasesanteriores; mantener POWER/RGB1.2 y seis individuales previos. Construir --only central video-output-ally y verificar8ZIP; si se reconstruyen todos, documentar cambios solo de envoltorio.
 - El componente video-output-ally usa carpeta nativa output-manager, licencia BSD3-Clause/créditos y preferencias existentes. No distribuir EDID/settings/wrapper del host. Instalar solo inactivo/escritorio, respaldo+hash+confirmaciónexacta una vez; rechazar Output Manager original/carpeta desconocida. No probar cambios físicos de salida.
+
+- Redactar las notas de cada release únicamente con sus novedades. No repetir funciones de versiones anteriores, catálogos completos ni avisos de que componentes sin cambios siguen sin cambios. Enlazar guías para detalles permanentes. Las correcciones de notas solo actualizan texto/fuente y su integridad; no reconstruir assets por una edición de la descripción publicada.
