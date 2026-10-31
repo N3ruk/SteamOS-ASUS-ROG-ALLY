@@ -70,7 +70,10 @@ def collect(ids, central):
         files['README.md'] = ('# ' + item['name'] + ' ' + item['version'] + '\n\n' + item['description'] + '\n\n' + item['requirements'] + '\n\n[Documentación](docs/' + ids[0] + '.md) · [Instalación](docs/INSTALLATION.md) · [Fuentes y build](docs/BUILD.md)\n').encode()
     if central:
         files['docs/RELEASE.md'] = (ROOT / 'docs/RELEASE.md').read_bytes()
-    files['payloads/SHA256SUMS'] = ''.join(digest(files['payloads/' + PAYLOADS[i]]) + '  ' + PAYLOADS[i] + '\n' for i in ids if i in PAYLOADS).encode()
+    # Keep the central source checkout and extracted package byte-compatible.
+    # Individual installers intentionally carry only their own payload entry.
+    files['payloads/SHA256SUMS'] = ((ROOT / 'payloads/SHA256SUMS').read_bytes() if central else
+        ''.join(digest(files['payloads/' + PAYLOADS[i]]) + '  ' + PAYLOADS[i] + '\n' for i in ids if i in PAYLOADS).encode())
     manifest = {'schema': 1, 'version': VERSION, 'components': ids,
                 'sha256': {name: digest(data) for name, data in sorted(files.items())}}
     files['manifest.json'] = (json.dumps(manifest, indent=2, ensure_ascii=False) + '\n').encode()
