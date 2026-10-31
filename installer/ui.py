@@ -39,7 +39,7 @@ def run(root, ids, failures):
                 card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
                 rows.append(card)
                 # An unavailable Decky is explained, but not offered as a checkbox.
-                if component in ('ally-power-decky', 'ally-rgb') and failures[component]:
+                if component in ('ally-power-decky', 'ally-rgb', 'video-output-ally') and failures[component]:
                     title = Gtk.Label(label=item['name'] + ' — No disponible', xalign=0)
                     title.add_css_class('heading')
                     card.append(title)

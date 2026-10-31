@@ -1,0 +1,17 @@
+{
+  "name": "Video Output ALLY for DOCKs",
+  "author": "N3ruk",
+  "flags": [
+    "root"
+  ],
+  "api_version": 1,
+  "publish": {
+    "tags": [
+      "utility",
+      "display",
+      "video",
+      "dock"
+    ],
+    "description": "Video-only Gaming Mode display selector for ASUS ROG Ally and docks."
+  }
+}

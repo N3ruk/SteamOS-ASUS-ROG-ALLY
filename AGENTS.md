@@ -6,7 +6,7 @@
 - Preservar originales de lanzadores, no escribir `/usr/share`, no sobreescribir modificaciones manuales.
 - No introducir tokens, credenciales, historiales, `.reference`, backups o `node_modules`.
 - Los instaladores en `payloads/` están fijados: modificar sus fuentes exige reconstruirlos explícitamente y regenerar manifests/checksums.
-- Verificar `python3 -m unittest discover -s tests -v`, construir siete ZIP y comprobar cada uno en temporal antes de publicar.
+- Verificar `python3 -m unittest discover -s tests -v`, construir ocho ZIP y comprobar cada uno en temporal antes de publicar.
 - No convertir pruebas simuladas en afirmaciones de validación física.
 
 - ALLY RGB es RGB solo: preservar efectos/colores/velocidades independientes, selección de editor sin escrituras y recuperación optativa. Su versión de distribución es 1.2, igual que el centralizado. No reinstalarlo en el host mientras esté activo para comprobar embalaje.
@@ -15,3 +15,6 @@
 - ALLY RGB debe leer únicamente batería interna de sistema (BAT0/BATn); nunca sustituirla por una batería de mando/periférico al faltar datos. Mantener pruebas con porcentajes distintos.
 
 - Para refrescar solo POWER validado y centralizado, usar `build.py --only central ally-power-decky`, conservar los cinco individuales ajenos (incluido RGB) y verificar los siete. Plugin, payload y exterior POWER usan 1.2. Reutilizar el release v1.2 sin retag ni anuncios, solo tras validación real del usuario; ver docs/BUILD.md.
+
+- Colección1.3 autorizada por Carlos: nuevo release v1.3 por integrar Video Output ALLY for DOCKs1.0. No modificar releasesanteriores; mantener POWER/RGB1.2 y seis individuales previos. Construir --only central video-output-ally y verificar8ZIP; si se reconstruyen todos, documentar cambios solo de envoltorio.
+- El componente video-output-ally usa carpeta nativa output-manager, licencia BSD3-Clause/créditos y preferencias existentes. No distribuir EDID/settings/wrapper del host. Instalar solo inactivo/escritorio, respaldo+hash+confirmaciónexacta una vez; rechazar Output Manager original/carpeta desconocida. No probar cambios físicos de salida.

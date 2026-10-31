@@ -2,9 +2,9 @@
 
 ## Fuente del proyecto
 
-El repositorio incluye fuentes de las seis piezas, recursos, pruebas, instaladores originales fijados y fuentes/licencias correspondientes de RyzenAdj. No se incluyen `node_modules`, credenciales, referencias de diagnóstico ni copias de tu equipo. Los binarios oficiales incorporados conservan sus avisos; no se descargan al instalar.
+El repositorio incluye fuentes de las siete piezas, recursos, pruebas, instaladores originales fijados y fuentes/licencias correspondientes de RyzenAdj. No se incluyen `node_modules`, credenciales, referencias de diagnóstico ni copias de tu equipo. Los binarios oficiales incorporados conservan sus avisos; no se descargan al instalar.
 
-## Generar los siete ZIP
+## Generar los ocho ZIP
 
 Desde la raíz, con Python 3.10+ (SteamOS actual):
 
@@ -20,7 +20,7 @@ La comprobación correcta de la lista relativa es:
 (cd release && sha256sum -c SHA256SUMS)
 ```
 
-`release/` contiene centralizado, seis individuales y `SHA256SUMS`. Cada ZIP incluye un `.run` autoextraíble sin dependencias de la carpeta original. Fechas y orden de archivos del paquete son fijos para obtener bytes iguales a partir de las mismas fuentes y entradas. La integridad SHA256 comprueba corrupción, no identidad criptográfica del autor.
+`release/` contiene centralizado, siete individuales y `SHA256SUMS`. Cada ZIP incluye un `.run` autoextraíble sin dependencias de la carpeta original. Fechas y orden de archivos del paquete son fijos para obtener bytes iguales a partir de las mismas fuentes y entradas. La integridad SHA256 comprueba corrupción, no identidad criptográfica del autor.
 
 ## Reconstruir aplicaciones
 
@@ -50,7 +50,7 @@ Ejecutar en cada directorio con `/usr/bin/python3`; las pruebas de las apps grá
 (cd components/bluetooth-trust-manager/payload && python3 -m unittest -v test_app)
 ```
 
-Las fuentes extraídas del centralizado incluyen `build.py` y todas las piezas. Las fuentes del individual solo contienen su componente: para reconstruir los siete paquetes necesitas el checkout completo o extraer el centralizado.
+Las fuentes extraídas del centralizado incluyen `build.py` y todas las piezas. Las fuentes del individual solo contienen su componente: para reconstruir los ocho paquetes necesitas el checkout completo o extraer el centralizado.
 
 ## Publicación en GitHub
 
@@ -62,10 +62,40 @@ python3 publish.py --owner TU_USUARIO --visibility public
 # O --visibility private: nunca se asume público por defecto.
 ```
 
-Debe ejecutarse sobre un checkout limpio, revisado y con commit en `main`. Comprueba los siete paquetes, crea `SteamOS-ASUS-ROG-ALLY` si no existe, conserva un `origin` ajeno sin modificarlo, empuja sin force y crea `v1.2` con los siete ZIP y `SHA256SUMS`. No imprime tokens, no modifica la configuración global de git y no reemplaza una release existente. Descarga de nuevo los ocho assets publicados y comprueba que sus hashes coincidan con los locales. Crear el repositorio exige permisos de GitHub adicionales a los de un conector que solo lee/escribe código en repositorios ya existentes.
+Debe ejecutarse sobre un checkout limpio, revisado y con commit en `main`. Comprueba los ocho paquetes, crea `SteamOS-ASUS-ROG-ALLY` si no existe, conserva un `origin` ajeno sin modificarlo, empuja sin force y crea `v1.3` con los ocho ZIP y `SHA256SUMS`. No imprime tokens, no modifica la configuración global de git y no reemplaza una release existente. Descarga de nuevo los nueve assets publicados y comprueba que sus hashes coincidan con los locales. Crear el repositorio exige permisos de GitHub adicionales a los de un conector que solo lee/escribe código en repositorios ya existentes.
 
 
-## Construir únicamente centralizado y ALLY RGB
+## Integración de vídeo: colección 1.3 / plugin 1.0
+
+Nuevo release v1.3 por añadir Video Output ALLY for DOCKs 1.0. Las aplicaciones
+previas conservan versiones y seis ZIP individuales. Para esta publicación:
+
+```bash
+(cd components/video-output-ally && npm ci --ignore-scripts && npm run typecheck && npm run build)
+(cd components/video-output-ally && python3 -m unittest discover -s tests -v && node --test tests/frontend.test.mjs)
+python3 components/video-output-ally/build.py
+# Copiar release/Video-Output-ALLY-for-DOCKs-1.0.zip del componente a payloads/.
+# Renovar únicamente su entrada fijada de payloads/SHA256SUMS tras revisar el ZIP.
+python3 build.py --only central video-output-ally
+python3 -m unittest discover -s tests -v
+python3 verify_packages.py
+(cd release && sha256sum -c SHA256SUMS)
+```
+
+Un checkout sin los seis individuales previos puede reconstruir los ocho con
+`python3 build.py`; para conservar exactamente los publicados en v1.2, descarga
+esos seis individuales primero y verifica sus hashes. El central 1.3 y el nuevo
+individual comparten ZIP nativo y fuentes. El nativo tiene carpeta `output-manager/`
+y manifest SHA256; no distribuye settings/EDID/wrapper del host. Las licencias npm
+están en `licenses/npm/`; se mantiene BSD-3-Clause y procedencia de Output Manager.
+
+Publicar main sin force y crear v1.3 apuntando al commit comprobado. No editar,
+retaggear ni reemplazar v1.2/v1.0.0. Nueve assets: ocho ZIP + SHA256SUMS. Verificar
+la descarga autenticada y el acceso público y conservar los seis individuales.
+La versión central está en installer/version.py; vídeo en package.json/lock raíz,
+main.py y catálogo. No sustituir cadenas 1.2 globalmente: POWER/RGB siguen en 1.2.
+
+## Referencia histórica: refrescos de RGB en v1.2
 
 Después de reconstruir el ZIP nativo RGB y renovar su hash fijado:
 
@@ -86,7 +116,7 @@ interfaz y publicación; la versión RGB está en su package.json/backend y en e
 El ZIP individual exterior RGB es un instalador `.run`: el ZIP nativo Decky está dentro
 del payload. El centralizado incluye exactamente ese mismo ZIP nativo, fuentes y licencias.
 
-## Refresco de ALLY POWER 1.2
+## Referencia histórica: refresco de ALLY POWER en v1.2
 
 El plugin, catálogo, ZIP nativo y envoltorio individual POWER usan **1.2**.
 Reconstruir explícitamente `components/ally-power-decky` con sus dependencias

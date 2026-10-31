@@ -1,17 +1,17 @@
 # Verificación y límites
 
-## Suite 1.2
+## Suite 1.3
 
-- 48 pruebas de selección, catálogo, integridad, instaladores y adaptadores Decky,
+- 64 pruebas de selección, catálogo, integridad, instaladores y adaptadores Decky,
   incluida actualización POWER 1.2 y rechazo de recuperación pendiente.
 - ALLY POWER Decky: 115 pruebas Python y 16 JavaScript; TypeScript/Rollup correctos.
 - ALLY RGB: 124 pruebas Python y 18 JavaScript; TypeScript estricto y Rollup correctos.
 
 Los números se refieren a casos de prueba, no a equipos físicos. Las comprobaciones
-anteriores de RGB se conservan; el refresco POWER no cambia sus fuentes ni su paquete.
+anteriores de POWER/RGB se conservan; la integración de vídeo no cambia sus fuentes ni paquetes.
 
 La interfaz gráfica se prueba con todas las casillas desmarcadas. No ofrece Ally Power
-Decky ni ALLY RGB cuando Decky está inactivo o faltan los requisitos de cada componente.
+Decky, ALLY RGB ni Video Output ALLY for DOCKs cuando Decky está inactivo o faltan los requisitos de cada componente.
 
 Se usan hogares temporales, servicios y dispositivos simulados: instalación sin cambiar
 sesión/arranque/hardware, rutas con espacios, archivos y enlaces originales, reinstalación,
@@ -26,15 +26,15 @@ no muestran el token de la conexión. Nada descarga dependencias ni habilita ser
 
 ## Paquetes
 
-Los siete ZIP se extraen en temporal y se verifican `.run`, SHA256, manifiesto, catálogo,
+Los ocho ZIP se extraen en temporal y se verifican `.run`, SHA256, manifiesto, catálogo,
 fuentes, licencias y `--check --json`, sin instalar. Se contrastan los payloads ejecutables
 con sus fuentes, incluyendo todos los archivos del ZIP nativo POWER 1.2 y el
-manifiesto ALLY RGB 1.2. Los cinco individuales ajenos se conservan byte a byte al
-construir `--only central ally-power-decky` (o central/RGB en un refresco RGB).
-El centralizado contiene los seis componentes y cada individual solo su componente.
+manifiesto ALLY RGB 1.2 y el nuevo manifiesto nativo de vídeo 1.0. Los seis individuales
+previos se conservan byte a byte al construir `--only central video-output-ally`.
+El centralizado contiene los siete componentes y cada individual solo su componente.
 
 Las fechas y orden de archivos son fijos. Un build selectivo repetido debe dar los mismos
-hashes de los siete ZIP y SHA256SUMS. Esto comprueba integridad, no es una firma de autor.
+hashes de los ocho ZIP y SHA256SUMS. Esto comprueba integridad, no es una firma de autor.
 
 ## ALLY RGB
 
@@ -91,8 +91,7 @@ después el funcionamiento en Gaming de la preparación y, por separado, de la
 recuperación automática. No indicó número de ciclos para esta última validación.
 Solo después de su confirmación se refrescan instaladores y release.
 
-Se conservan escritorio 1.0.0 y los otros cinco paquetes individuales ajenos a este
-refresco. Sus comprobaciones previas incluyeron 31 pruebas de escritorio. Las instantáneas
+Se conservan los seis paquetes individuales anteriores, incluido escritorio 1.0.0. Sus comprobaciones previas incluyeron 31 pruebas de escritorio. Las instantáneas
 de topología se generan en el destino, nunca se empaqueta la del equipo constructor.
 
 La app Bluetooth fue probada manualmente por el usuario. La instalación completa en
@@ -102,3 +101,23 @@ con todas las versiones de SteamOS, Decky o Steam. El TDP nativo usa una API int
 
 No se resuelven dependencias modificando el sistema. Si faltan, se explica y el componente
 no está disponible. Las pruebas de empaquetado no cambian TDP, SMT, Bluetooth, RGB ni arranque.
+
+## Video Output ALLY for DOCKs 1.0
+
+53 pruebas Python y 5 de interfaz: guardas y rollback con hardware simulado, identidad EDID, caché,
+nombres PNP/modelo, etiquetas, interna ASUS ALLY, settings atómicos sin perder campos,
+consultas sin procesos/audio/escrituras y UI con refresco secuencial/cancelable,
+busy y errores. Compilación TypeScript/Rollup y comparación de los tres módulos
+del motor con la versión local previa, sin cambios de algoritmo.
+
+El adaptador de distribución prueba hash/manifiesto completo, identidad/versión,
+rutas inseguras, backups, rechazo de Output Manager original/carpeta desconocida,
+Gaming/owned/busy/desactivado, solicitud exacto, confirmación una vez y reconexión
+solo lectura, archivos realmente instalados y bloqueo concurrente. No usa cambios
+de monitor para comprobar una instalación.
+
+Carga real de backend/frontend y probe de scope en RC71L, sin escrituras; labels
+AOC/Acer/ASUS ALLY observados en metadatos. Estos resultados no son una prueba física
+de vídeo Gaming, dock tardío/reconexión ni otros modelos. La publicación1.3 fue
+solicitada expresamente, sin atribuir al usuario una validación física no declarada.
+Los seis individuales previos y los releases v1.2/v1.0.0 se conservan intactos.

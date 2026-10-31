@@ -25,14 +25,14 @@ Vuelve a ejecutar el paquete deseado. Los lanzadores mantienen la copia original
 
 Cierra Ally Power (incluida la bandeja) antes de actualizarlo; cierra Confianza Bluetooth antes de sustituirla. No se cierran por ti.
 
-Decky: sal de Gaming para que el plugin deje de controlar hardware. Se comprueba `get_state.active` y que no haya recuperación pendiente, y se guarda una copia ZIP antes de sustituir una versión reconocida (según el catálogo de versiones admitidas de cada adaptador, incluido POWER 1.2). Si no se localiza la carpeta o no se puede leer, no se actualiza. Para rutas no estándar, define `DECKY_PLUGIN_DIR` como carpeta padre de `ally-power-decky` o `ally-rgb`. La integración automática se comprobó contra la API local de Decky **3.3.0**; si cambia, el adaptador falla con un mensaje, no fuerza un reinicio ni copia archivos como root. La conexión WebSocket puede reemplazar brevemente la conexión de su frontend, que vuelve a conectarse.
+Decky: sal de Gaming para que el plugin deje de controlar hardware. Se comprueba `get_state.active` y que no haya recuperación pendiente, y se guarda una copia ZIP antes de sustituir una versión reconocida (según el catálogo de versiones admitidas de cada adaptador, incluido POWER 1.2). Si no se localiza la carpeta o no se puede leer, no se actualiza. Para rutas no estándar, define `DECKY_PLUGIN_DIR` como carpeta padre de `ally-power-decky`, `ally-rgb` u `output-manager`. La integración automática se comprobó contra la API local de Decky **3.3.0**; si cambia, el adaptador falla con un mensaje, no fuerza un reinicio ni copia archivos como root. La conexión WebSocket puede reemplazar brevemente la conexión de su frontend, que vuelve a conectarse.
 
 ## Desinstalar
 
 - **Lanzadores:** busca «Desinstalar Return to Gaming Mode» o «Desinstalar Alternar arranque de SteamOS» en el menú. Devuelve los archivos originales, o retira los añadidos si antes no existían. Guarda recibo recuperable `removed-*.json`. Si se detectan cambios manuales, no se toca nada. La carpeta vacía y `operation.lock` pueden quedarse; no son procesos.
 - **Ally Power:** usa su desinstalador del menú o el `.run` original incluido con `--uninstall`.
 - **Bluetooth:** desinstalador del menú o `.run` original con `--uninstall`.
-- **Decky:** ajustes de Decky → Plugins → Ally Power o ALLY RGB → desinstalar. No añade un segundo gestor de desinstalación privilegiada.
+- **Decky:** ajustes de Decky → Plugins → Ally Power, ALLY RGB o Video Output ALLY for DOCKs → desinstalar. No añade un segundo gestor de desinstalación privilegiada.
 
 Desinstalar el lanzador de arranque **no cambia** el modo predeterminado ya elegido. Desinstalar el lanzador Gaming no cambia la sesión actual. Si una actualización del sistema sustituye iconos o ficheros gestionados, revísalos antes de restaurar; nunca se sobrescriben a ciegas.
 
@@ -50,3 +50,17 @@ Las copias de instalaciones reconocidas e inactivas se guardan en
 nativo de Decky para actualizarlo. Ajustes previos con recuperación activada pueden restaurarse
 al cargar después de confirmar preparación y esperar 10 segundos; en una instalación sin ajustes no se aplican luces. La suite no envía colores ni
 detiene otros gestores RGB.
+
+## Video Output ALLY for DOCKs
+
+[Guía del plugin de vídeo 1.0](video-output-ally.md), nuevo en la colección 1.3.
+Solo se ofrece con RC71L/requisitos de vídeo y Decky activo. Se instala desde escritorio;
+no sustituye un controlador en Gaming, ocupado o con restricciones propias pendientes.
+Respalda versiones reconocidas y conserva los ajustes. La carpeta interna sigue siendo
+`output-manager`; retira primero el Output Manager original desde Decky y espera a que
+termine antes de iniciar una instalación nueva. No sobrescribe carpetas desconocidas.
+
+El central y el individual contienen el mismo ZIP nativo. No instalan un wrapper de
+Gamescope, no imponen AOC ni otro monitor en una instalación limpia y no cambian audio.
+Las preferencias de vídeo ya guardadas se conservan y pueden seguir aplicándose en
+Gaming. No ejecutan cambios de salida para verificar la instalación.

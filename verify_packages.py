@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read-only end-to-end verification of all seven ZIP/.run distributions."""
+"""Read-only end-to-end verification of all eight ZIP/.run distributions."""
 import hashlib
 import json
 from pathlib import Path
@@ -8,7 +8,7 @@ import tempfile
 import zipfile
 from build import NAMES
 from installer.engine import CATALOG, PAYLOADS
-from installer import rgb_decky
+from installer import rgb_decky, video_decky
 
 ROOT = Path(__file__).resolve().parent
 
@@ -61,11 +61,22 @@ def verify_embedded_rgb(extracted, expected):
                 raise RuntimeError('Payload ALLY RGB y fuentes divergen: ' + name)
 
 
+def verify_embedded_video(extracted, expected):
+    if 'video-output-ally' not in expected:
+        return
+    payload = extracted / 'payloads' / PAYLOADS['video-output-ally']
+    video_decky.check_payload(payload, hashlib.sha256(payload.read_bytes()).hexdigest(), CATALOG['video-output-ally']['version'])
+    with zipfile.ZipFile(payload) as archive:
+        for name in json.loads(archive.read('output-manager/manifest.json'))['sha256']:
+            if archive.read('output-manager/'+name) != (extracted/'components/video-output-ally'/name).read_bytes():
+                raise RuntimeError('Payload de vídeo y fuentes divergen: '+name)
+
+
 def main():
     out = ROOT / 'release'
     sums = dict(line.split('  ', 1)[::-1] for line in (out / 'SHA256SUMS').read_text().splitlines())
     if set(sums) != {name + '.zip' for name in NAMES.values()}:
-        raise RuntimeError('Se necesitan exactamente siete entradas ZIP en SHA256SUMS.')
+        raise RuntimeError('Se necesitan exactamente ocho entradas ZIP en SHA256SUMS.')
     with tempfile.TemporaryDirectory(prefix='suite-artifact-qa-') as temporary:
         temporary = Path(temporary)
         for component, name in NAMES.items():
@@ -89,6 +100,7 @@ def main():
                 raise RuntimeError('Componentes incorrectos: ' + name)
             verify_embedded_power(extracted, expected, temporary)
             verify_embedded_rgb(extracted, expected)
+            verify_embedded_video(extracted, expected)
             for i in expected:
                 if not (extracted / 'components' / i).is_dir() or not (extracted / 'docs' / (i + '.md')).is_file():
                     raise RuntimeError('Faltan fuentes/documentación: ' + i)
@@ -104,7 +116,7 @@ def main():
             if set(report) != set(expected):
                 raise RuntimeError('Informe de requisitos incorrecto: ' + name)
             print('OK: ' + zip_path.name + ' — integridad, extracción, fuentes y requisitos sin instalar')
-    print('7/7 paquetes verificados. No se han instalado apps ni modificado hardware/arranque/Bluetooth.')
+    print('8/8 paquetes verificados. No se han instalado apps ni modificado hardware/arranque/Bluetooth.')
 
 
 if __name__ == '__main__':

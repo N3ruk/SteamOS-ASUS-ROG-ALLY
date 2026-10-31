@@ -7,7 +7,7 @@ from pathlib import Path
 import platform
 import shutil
 import subprocess
-from . import decky, rgb_decky, launchers
+from . import decky, rgb_decky, video_decky, launchers
 
 CATALOG = {
     'return-gaming': {
@@ -30,6 +30,10 @@ CATALOG = {
         'name': 'ALLY RGB — Decky', 'version': '1.2',
         'description': 'Iluminación de cuatro zonas con efectos, colores y velocidades independientes; parejas 2–3/1–4, porcentajes de color/velocidad, transición de dos colores y recuperación opcional tras 10 segundos de sesión operativa. No controla potencia ni ventiladores.',
         'requirements': 'ROG Ally RC71L con SteamOS x86_64 y LED sysfs de cuatro zonas. Decky instalado y activo, python3-aiohttp. Ally X no validada; no instala Decky ni detiene otros gestores RGB.'},
+    'video-output-ally': {
+        'name': 'Video Output ALLY for DOCKs — Decky', 'version': '1.0',
+        'description': 'Selecciona la pantalla de Gaming desde QAM; nombres de monitor y pantalla interna ASUS ALLY. Solo vídeo, sin selección de audio. Conserva preferencias existentes y verifica los cambios de salida.',
+        'requirements': 'ROG Ally RC71L, SteamOS x86_64, Gamescope/AMDGPU, Decky instalado y activo y python3-aiohttp. Otros modelos no validados. Instalar desde escritorio; no instala Decky.'},
     'bluetooth-trust-manager': {
         'name': 'Confianza Bluetooth', 'version': '1.0.0',
         'description': 'Lista dispositivos de confianza y permite retirar solo esa confianza, previa confirmación. Especialmente útil con mandos PS3 cuando, tras desvincularlos, no vuelve a aparecer la autorización USB. No borra claves de emparejamiento.',
@@ -39,6 +43,7 @@ PAYLOADS = {
     'ally-power': 'Ally-Power-1.0.0-SteamOS-x86_64.run',
     'ally-power-decky': 'Ally-Power-Decky-1.2.zip',
     'ally-rgb': 'ALLY-RGB-1.2.zip',
+    'video-output-ally': 'Video-Output-ALLY-for-DOCKs-1.0.zip',
     'bluetooth-trust-manager': 'Confianza-Bluetooth-1.0.0-SteamOS.run',
 }
 
@@ -107,6 +112,17 @@ def rgb_errors():
     return ['El kernel anuncia límites RGB no compatibles.']
 
 
+def video_errors():
+    errors = []
+    product = read('/sys/class/dmi/id/product_name')
+    if platform.machine() != 'x86_64' or 'ROG Ally' not in product or 'RC71L' not in product:
+        errors.append('El plugin de vídeo está preparado para ROG Ally RC71L con SteamOS x86_64; otros modelos no validados.')
+    for command in ('gamescopectl', 'xprop', 'busctl', 'runuser', 'pgrep', 'python3'):
+        if not Path('/usr/bin', command).is_file():
+            errors.append('Falta '+command+' para el controlador de vídeo.')
+    return errors
+
+
 def available(root):
     manifest = json.loads((Path(root) / 'manifest.json').read_text())
     ids = manifest.get('components', [])
@@ -136,13 +152,15 @@ def requirements(component, root, delegate=True):
         errors += ally_errors()
     if component == 'ally-rgb':
         errors += rgb_errors()
+    if component == 'video-output-ally':
+        errors += video_errors()
     if component in launchers.IDS:
         for cmd in ('kdialog', 'steamosctl'):
             if not shutil.which(cmd):
                 errors.append('Falta ' + cmd)
         if component == 'return-gaming' and not (shutil.which('qdbus6') or shutil.which('qdbus')):
             errors.append('Falta qdbus6 o qdbus.')
-    if component in ('ally-power-decky', 'ally-rgb'):
+    if component in ('ally-power-decky', 'ally-rgb', 'video-output-ally'):
         ok, reason = decky.availability()
         if not ok:
             errors.append(reason)
@@ -166,6 +184,9 @@ def install(component, root):
         receipt = launchers.install(component, root / 'components' / component)
         launchers.refresh()
         return 'Instalado para tu usuario. Copia original: ' + str(receipt)
+    if component == 'video-output-ally':
+        rel = 'payloads/' + PAYLOADS[component]
+        return asyncio.run(video_decky.install(root / rel, manifest['sha256'][rel], CATALOG[component]['version']))
     if component == 'ally-rgb':
         rel = 'payloads/' + PAYLOADS[component]
         return asyncio.run(rgb_decky.install(root / rel, manifest['sha256'][rel], CATALOG[component]['version']))

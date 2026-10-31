@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build seven self-contained ZIPs, each with a checksummed offline .run and sources.
+"""Build eight self-contained ZIPs, each with a checksummed offline .run and sources.
 
 Uses only Python stdlib. Third-party binary inputs remain pinned by manifest.
 """
@@ -25,6 +25,7 @@ NAMES = {
     'ally-power': 'Ally-Power-Escritorio-1.0.0',
     'ally-power-decky': 'Ally-Power-Decky-1.2',
     'ally-rgb': 'ALLY-RGB-1.2',
+    'video-output-ally': 'Video-Output-ALLY-for-DOCKs-1.0',
     'bluetooth-trust-manager': 'Confianza-Bluetooth-1.0.0',
 }
 EXCLUDED = {'.git', '__pycache__', 'node_modules', '.reference', 'backups', 'release'}
@@ -44,7 +45,7 @@ def collect(ids, central):
         directory = ROOT / 'components' / component
         for path in sorted(directory.rglob('*')):
             rel = path.relative_to(directory)
-            if any(part in EXCLUDED for part in rel.parts) or path.suffix == '.pyc' or (component not in ('ally-power-decky', 'ally-rgb') and 'dist' in rel.parts):
+            if any(part in EXCLUDED for part in rel.parts) or path.suffix == '.pyc' or (component not in ('ally-power-decky', 'ally-rgb', 'video-output-ally') and 'dist' in rel.parts):
                 continue
             if path.is_symlink():
                 raise RuntimeError('No se empaquetan enlaces: ' + str(path))
@@ -134,7 +135,7 @@ def main():
                  'No instala nada al extraer. Todo el código, documentación y licencias están dentro del .run.\n'
                  'Para leerlos sin instalar: `bash ' + folder + '-SteamOS.run --extract fuentes`\n\n'
                  'Comprobar sin instalar: `bash ' + folder + '-SteamOS.run --check`\n'
-                 'El ZIP individual contiene únicamente este componente; el central contiene los seis.\n\n' +
+                 'El ZIP individual contiene únicamente este componente; el central contiene los siete.\n\n' +
                  ('' if central else CATALOG[component]['description'] + '\n\n' + CATALOG[component]['requirements'] + '\n'))
         path = out / (folder + '.zip')
         with zipfile.ZipFile(path, 'w') as archive:

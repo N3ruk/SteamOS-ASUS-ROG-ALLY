@@ -1,8 +1,25 @@
-# SteamOS ASUS ROG ALLY 1.2
+# SteamOS ASUS ROG ALLY 1.3
 
-Instalador centralizado **1.2**, **Ally Power Decky 1.2** y **ALLY RGB 1.2**.
-Los otros cinco paquetes individuales conservan sus archivos sin cambios.
-La release v1.0.0 permanece disponible y no se reemplaza.
+La colección pasa a **1.3 por incorporar un nuevo plugin**: **Video Output ALLY for
+DOCKs 1.0**. Instalador centralizado 1.3 y nuevo individual; ahora siete componentes
+opcionales y ocho ZIP. No es una actualización de POWER/RGB: conservan 1.2, sus
+funciones y los seis paquetes individuales previos. Los releases **v1.2 y v1.0.0**
+permanecen disponibles sin sustituirse.
+
+## Video Output ALLY for DOCKs 1.0
+
+- Selección de la pantalla de Gaming desde QAM, con un panel nuevo dedicado a vídeo.
+- Pantalla interna **ASUS ALLY**; monitores externos por etiqueta guardada o fabricante/modelo EDID, con nombre de conector solo si faltan datos.
+- Sin selector ni cambios de audio; sin Manage Outputs, Settings o About. Estados de salida activa, operación y errores.
+- Motor `edid-mst-nudge-v1` conservado: selección por identidad EDID y connector-ID, E/S en scope temporal de user.slice, guardas de suspensión/sesión, comprobación nativa Gamescope+DRM y rollback de cambios propios. No usa AMD trigger_hotplug ni reset físico del dock; la interna nunca se fuerza a off.
+- Las preferencias existentes se conservan. Para ellas, la recuperación espera 10 s de sesión Gaming continua y 2 s de topología estable, con una tentativa por topología; la selección manual prevalece en el ciclo. En una instalación limpia no se impone monitor predeterminado.
+- Instalador individual y centralizado con el mismo ZIP nativo, respaldo recuperable, comprobación de integridad/versión/backend y rechazo de sustitución mientras controla pantallas. No instala Decky, servicios ni wrapper de Gamescope.
+
+Derivado BSD-3-Clause de Output Manager con copyrights y créditos conservados.
+Comprobado en RC71L: 53 pruebas Python y 5 de interfaz, compilación y carga/probe nativo
+sin escrituras de hardware. No se presenta como validación física universal de
+Gaming/docks ni como reparación demostrada de errores independientes de enlace DPCD.
+[Funciones, requisitos y recuperación](video-output-ally.md).
 
 ## ALLY RGB 1.2
 
@@ -23,7 +40,7 @@ emulador abierto y la función activa, y la interfaz de las nuevas parejas y
 porcentajes. Ese resultado no demuestra una causa concreta de los antiguos bloqueos
 ni compatibilidad universal. El transporte HID aceptado no es lectura física del color.
 
-La recuperación RGB y su paquete permanecen sin cambios en este refresco de POWER.
+La recuperación RGB y su paquete permanecen sin cambios en esta integración de vídeo.
 
 ## Ally Power Decky 1.2
 
@@ -44,30 +61,32 @@ Recupera una sola vez **TDP primero y CPU/SMT después**. Respeta el límite act
 
 Edición manual, otra suspensión, salida de Gaming, cambio de juego, control de escritorio o gestor competidor cancelan el intento. Si Steam aún no identifica el juego, espera sin aplicar sus ajustes al menú. No hay reintentos en bucle. Solo se guarda si la opción está activada: **no se guardan perfiles CPU/TDP ni se aplican al arrancar o recargar**. Con la opción apagada, CPU queda completa tras despertar hasta una nueva acción manual.
 
-El usuario ha confirmado el funcionamiento en Gaming, primero de la preparación y después de la recuperación automática. No se atribuye un número de ciclos a esta última confirmación ni compatibilidad universal. Se mantiene **1.2**, también en el ZIP nativo y el instalador individual, reutilizando este mismo release.
+El usuario ha confirmado el funcionamiento en Gaming, primero de la preparación y después de la recuperación automática. No se atribuye un número de ciclos a esta última confirmación ni compatibilidad universal. Se mantiene **1.2**, también en el ZIP nativo y el instalador individual, conservando lo publicado en v1.2, sin cambios de POWER en esta colección 1.3.
 
 ## Componentes incluidos
 
 | Componente | Versión |
 |---|---|
-| Instalador centralizado | 1.2 |
+| Instalador centralizado | 1.3 |
 | ALLY RGB — Decky | 1.2 |
 | Volver al modo Gaming | 1.0.0 |
 | Alternar arranque SteamOS | 1.0.0 |
 | Ally Power Escritorio | 1.0.0 |
 | Ally Power Decky | 1.2 |
+| Video Output ALLY for DOCKs | 1.0 |
 | Confianza Bluetooth | 1.0.0 |
 
 ## Descargas
 
-- `SteamOS-ASUS-ROG-ALLY-1.2.zip` — centralizado con seis componentes opcionales.
+- `SteamOS-ASUS-ROG-ALLY-1.3.zip` — centralizado con siete componentes opcionales.
 - `ALLY-RGB-1.2.zip` — instalador individual autónomo RGB; incluye el ZIP nativo Decky.
 - `Volver-al-Modo-Gaming-1.0.0.zip`.
 - `Alternar-Arranque-SteamOS-1.0.0.zip`.
 - `Ally-Power-Escritorio-1.0.0.zip`.
 - `Ally-Power-Decky-1.2.zip` — instalador individual autónomo POWER; incluye el ZIP nativo Decky 1.2.
+- `Video-Output-ALLY-for-DOCKs-1.0.zip` — instalador individual autónomo de vídeo; incluye ZIP nativo Decky 1.0.
 - `Confianza-Bluetooth-1.0.0.zip`.
-- `SHA256SUMS` — hashes de los siete ZIP.
+- `SHA256SUMS` — hashes de los ocho ZIP.
 
 Extrae el ZIP y ejecuta su `.run` en escritorio **sin sudo**. Todo empieza desmarcado.
 Cada paquete incluye fuentes, documentación y licencias, accesibles mediante `--extract`.
@@ -83,13 +102,12 @@ ese caso utiliza la gestión nativa de Decky. Los ajustes guardados se conservan
 Para POWER, `fuentes/payloads/Ally-Power-Decky-1.2.zip` es el ZIP nativo con carpeta
 superior `ally-power-decky/`, distinto del ZIP exterior de descarga. El adaptador
 reconoce POWER 1.2, respalda la instalación anterior y rechaza sustituirla si
-controla hardware o tiene una recuperación pendiente. Este refresco no reinstala
-plugins ni cambia los ajustes del equipo usado para preparar los paquetes.
+controla hardware o tiene una recuperación pendiente. La integración de vídeo no reinstala POWER/RGB ni cambia sus ajustes.
 
 ## Comprobaciones y límites
 
 115 pruebas Python POWER y 16 JavaScript; 124 pruebas Python RGB y 18 JavaScript,
-TypeScript/Rollup, 48 pruebas de la suite y verificación integral de los siete
+TypeScript/Rollup, 64 pruebas de la suite y verificación integral de los ocho
 paquetes sin instalar componentes en el host.
 Recarga del backend RGB activo comprobada en 0,1 s sin SIGKILL; validación del usuario
 en Gaming y de la interfaz indicada arriba. Las pruebas no acreditan lectura física

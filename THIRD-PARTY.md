@@ -38,3 +38,17 @@ No se incluye código de HueSync, pyserial, controladores HID o gestores de pote
 La copia Python pura de dbus-next 0.2.3 (MIT) está en `components/ally-rgb/vendor/dbus_next`,
 con licencia en `components/ally-rgb/licenses/dbus-next-LICENSE`. Solo la importa el
 observador aislado de logind; no instala dependencias de sistema.
+
+## Video Output ALLY for DOCKs 1.0
+
+Derivado de [Output Manager, joeatethebeans](https://github.com/joeatethebeans/OutputManager),
+BSD-3-Clause. Copyright 2026 joeatethebeans, copyright original 2022–2024 Steam Deck Homebrew,
+y adaptaciones 2026 N3ruk. Se preservan condiciones, avisos y exención en
+`components/video-output-ally/LICENSE` y procedencia en `NOTICE.md`; la licencia MIT
+del instalador no cambia la de este componente. No implica afiliación con ASUS/Valve.
+
+Incluye un panel TypeScript nuevo solo vídeo, adaptador de configuración y nombres
+EDID, más el motor local de selección verificada. Fuentes y lockfile acompañan el
+paquete; licencias npm en `components/video-output-ally/licenses/npm/`, también en
+el ZIP nativo. React/UI proceden de Decky y hwdata del sistema, sin copiar sus bases
+ni distribuir node_modules. No se distribuyen configuraciones/EDID de usuarios.
