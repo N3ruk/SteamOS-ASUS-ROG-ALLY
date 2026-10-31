@@ -23,6 +23,7 @@ Entradas oficiales fijadas para Ally Power:
 - Frontend Decky: dependencias/versiones/licencias fijadas en `components/ally-power-decky/package-lock.json`; se mantiene el código fuente TypeScript y build reproducible mediante npm. No se distribuye `node_modules`. Los textos de licencia de las dependencias de npm se conservan en `components/ally-power-decky/licenses/npm/`, también dentro del ZIP nativo del plugin.
 - GTK/PyGObject, BlueZ, KDialog, steamosctl y bibliotecas del sistema se utilizan desde SteamOS, no se empaquetan como copias propias.
 - Adaptador de API Decky escrito para esta suite sobre `aiohttp`, biblioteca del sistema disponible en su instalación; no se distribuye ni instala automáticamente.
+- ALLY POWER 1.2 incluye dbus-next 0.2.3 (MIT) en `components/ally-power-decky/vendor/dbus_next`, con licencia en `licenses/dbus-next-LICENSE`. Solo lo importa su auxiliar de Python del sistema para logind y el inhibidor delay; no instala dependencias ni accede a CPU/TDP/HID.
 
 La consulta previa de alternativas favoreció reutilizar los instaladores existentes y la API de Decky en vez de un segundo instalador privilegiado. La interfaz central propia cubre la selección y agrupación específicas solicitadas por el usuario.
 

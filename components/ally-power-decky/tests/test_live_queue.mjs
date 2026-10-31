@@ -46,3 +46,15 @@ test('unloading drops queued writes', async () => {
   q.enqueue({kind:'tdp',watts:20});q.stop();await q.flush();
   assert.equal(calls.length,0);
 });
+test('session boundary discards all old commands including CPU and mode', async () => {
+  const calls=[]; let release;
+  const wait=new Promise(r=>release=r);
+  const q=new LiveQueue(async c=>{calls.push(c); await wait; return c;});
+  q.enqueue({kind:'tdp',watts:20,lease:'old'}); const running=q.flush();
+  q.enqueue({kind:'cpu',config:{smt:false,cores:4,threads:4},lease:'old'});
+  q.enqueue({kind:'mode',enabled:true,lease:'old'});
+  q.discard(); release(); await running;
+  assert.equal(calls.length,1);
+  q.enqueue({kind:'tdp',watts:15,lease:'new'}); await q.flush();
+  assert.equal(calls[1].lease,'new'); q.stop();
+});

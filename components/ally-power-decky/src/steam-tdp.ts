@@ -23,12 +23,17 @@ export function nativeTdpEnabled(): boolean | null {
   return typeof value === "boolean" ? value : null;
 }
 export function nativeTdpAvailable(): boolean { return nativeTdpEnabled() !== null && !!resolveSetter(); }
-export async function setNativeTdp(enabled: boolean): Promise<void> {
+export function nativeTdpKey(): string {
+  return JSON.stringify({enabled:nativeTdpEnabled(),limit:store()?.clientSettings?.steamos_tdp_limit ?? null});
+}
+export async function setNativeTdp(enabled: boolean, allowed: () => boolean = () => true): Promise<void> {
+  if (!allowed()) throw new Error("Sesión en transición; no se cambia el TDP nativo.");
   const update = resolveSetter();
   if (!update || nativeTdpEnabled() === null) throw new Error("Esta versión de Steam no expone su control TDP. Los controles de CPU siguen disponibles.");
   if (nativeTdpEnabled() === enabled) return;
   await update("steamos_tdp_limit_enabled", enabled);
   for (let i = 0; i < 50; i++) {
+    if (!allowed()) throw new Error("Sesión en transición; no se cambia el TDP nativo.");
     if (nativeTdpEnabled() === enabled) return;
     await new Promise(resolve => setTimeout(resolve, 40));
   }

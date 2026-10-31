@@ -29,7 +29,7 @@ El build central empaqueta los instaladores originales fijados en `payloads/`; e
 - Escritorio: `cd components/ally-power; python3 build.py`; copiar su `.run` desde `dist/` a `payloads/` y actualizar versión/nombre en `engine.py` y `build.py` si cambia. Ver `REBUILD.md`.
 - ALLY RGB: en `components/ally-rgb`, ejecutar `npm ci`, `npm run typecheck`, `npm run build`, `python3 build.py`. Copiar `release/ALLY-RGB-1.2.zip` a `payloads/` y recalcular su entrada en `payloads/SHA256SUMS`. Es el ZIP nativo; el ZIP individual exterior se genera con el build de la suite.
 - Bluetooth: `cd components/bluetooth-trust-manager; python3 build.py`; copiar el `.run` de `dist/` a `payloads/`.
-- Decky: requiere Node/npm compatibles con las dependencias bloqueadas. En `components/ally-power-decky`, ejecutar `npm ci`, `npm run typecheck`, `npm run build`, `python3 build.py`. Copiar el ZIP de `release/` a `payloads/`. No hace falta Node en el equipo que instala.
+- Decky: requiere Node/npm compatibles con las dependencias bloqueadas. En `components/ally-power-decky`, ejecutar `npm ci --ignore-scripts`, `npm run typecheck`, `npm run build`, `python3 build.py`. Copiar el ZIP de `release/` a `payloads/`. No hace falta Node en el equipo que instala.
 - Lanzadores: se empaquetan directamente desde `components/return-gaming`, `components/default-mode` e `installer/launchers.py`. No necesitan compilación.
 
 Después de sustituir binarios, revisa las entradas y renueva sus hashes con `(cd payloads && sha256sum *.run *.zip > SHA256SUMS)`. No regeneres hashes para ignorar una corrupción o un cambio no revisado.
@@ -43,7 +43,7 @@ Ejecutar en cada directorio con `/usr/bin/python3`; las pruebas de las apps grá
 ```bash
 (cd components/ally-power && PYTHONPATH=src:packaging:. python3 -m unittest discover -s tests -v)
 (cd components/ally-power-decky && python3 -m unittest discover -s tests -v)
-(cd components/ally-power-decky && node --test tests/test_live_queue.mjs tests/test_steam_tdp.mjs)
+(cd components/ally-power-decky && node --test tests/test_live_queue.mjs tests/test_steam_tdp.mjs tests/test_session_frontend.mjs)
 (cd components/ally-rgb && python3 -m unittest discover -s tests -v)
 (cd components/ally-rgb && node --test tests/test_queue.mjs tests/test_ui.mjs)
 (cd components/bluetooth-trust-manager && python3 -m unittest -v test_installer)
@@ -86,11 +86,37 @@ interfaz y publicación; la versión RGB está en su package.json/backend y en e
 El ZIP individual exterior RGB es un instalador `.run`: el ZIP nativo Decky está dentro
 del payload. El centralizado incluye exactamente ese mismo ZIP nativo, fuentes y licencias.
 
+## Refresco de ALLY POWER 1.2
+
+El plugin, catálogo, ZIP nativo y envoltorio individual POWER usan **1.2**.
+Reconstruir explícitamente `components/ally-power-decky` con sus dependencias
+bloqueadas, pruebas Python/JS, TypeScript y Rollup; copiar
+`release/Ally-Power-Decky-1.2.zip` a `payloads/` y renovar su hash. Eliminar del
+catálogo y de los payloads la entrada anterior 1.1.0, no conservar dos variantes
+como si fueran la misma aplicación.
+
+```bash
+python3 build.py --only central ally-power-decky
+python3 -m unittest discover -s tests -v
+python3 verify_packages.py
+(cd release && sha256sum -c SHA256SUMS)
+```
+
+Conserva los otros cinco individuales byte a byte, incluido RGB 1.2. Verifica
+todos los archivos del ZIP nativo contra sus fuentes y distingue su nombre,
+idéntico al exterior, por la estructura interna: el nativo contiene
+`ally-power-decky/`, el exterior contiene el `.run`.
+
 La release v1.2 ya existe. `publish.py` es solo para una release nueva y rechaza
-reemplazar una existente. Para una actualización del mismo v1.2 expresamente
-autorizada: inspeccionar y respaldar metadata/assets, preservar tag, título, ID y
-nombres; construir solo central/RGB y conservar los otros cinco ZIP. Empujar main
-sin force ni retag; sustituir exclusivamente esos dos ZIP y SHA256SUMS, y actualizar
-la descripción con docs/RELEASE.md si está autorizado. No crear release, discusión
-ni anuncio nuevos. Descargar los ocho assets y verificar hashes, metadata y los
-cinco assets ajenos; v1.0.0 debe permanecer íntegra. No incluye paquetes 1.3.x.
+reemplazar una existente. Un refresco autorizado del mismo v1.2 debe respaldar
+metadata/assets y preservar tag, título, ID y los assets ajenos. Para POWER,
+tras validación real Gaming del usuario, se sustituye el centralizado, se publica
+`Ally-Power-Decky-1.2.zip` y se retira únicamente el antiguo individual 1.1.0 de
+este release; se renueva SHA256SUMS y su descripción con docs/RELEASE.md. El cambio
+de nombre POWER a 1.2 fue solicitado expresamente. Para refrescos solo RGB se
+conservan los nombres existentes y se construye `--only central ally-rgb`.
+
+Empujar main sin force ni retag. No crear release, discusión ni anuncio nuevos.
+Descargar los ocho assets y verificar hashes, metadata y los cinco assets ajenos;
+v1.0.0 debe permanecer íntegra. No incluye paquetes 1.3.x ni exige reinstalar o
+alterar hardware del equipo constructor para comprobar el embalaje.

@@ -13,3 +13,5 @@
 - Para refrescar solo centralizado y RGB, usar `build.py --only central ally-rgb`, conservar los cinco individuales previos y verificar los siete paquetes.
 
 - ALLY RGB debe leer únicamente batería interna de sistema (BAT0/BATn); nunca sustituirla por una batería de mando/periférico al faltar datos. Mantener pruebas con porcentajes distintos.
+
+- Para refrescar solo POWER validado y centralizado, usar `build.py --only central ally-power-decky`, conservar los cinco individuales ajenos (incluido RGB) y verificar los siete. Plugin, payload y exterior POWER usan 1.2. Reutilizar el release v1.2 sin retag ni anuncios, solo tras validación real del usuario; ver docs/BUILD.md.

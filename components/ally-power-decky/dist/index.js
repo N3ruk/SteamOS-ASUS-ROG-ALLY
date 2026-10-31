@@ -37,6 +37,12 @@ class LiveQueue {
     publish(result, error = "") { for (const fn of this.listeners)
         fn(result, error); }
     dropTdp() { this.queue = this.queue.filter(c => c.kind !== "tdp"); }
+    discard() {
+        this.queue = [];
+        if (this.timer)
+            clearTimeout(this.timer);
+        this.timer = null;
+    }
     enqueue(command) {
         if (this.stopped)
             return;
@@ -118,7 +124,12 @@ function nativeTdpEnabled() {
     return typeof value === "boolean" ? value : null;
 }
 function nativeTdpAvailable() { return nativeTdpEnabled() !== null && !!resolveSetter(); }
-async function setNativeTdp(enabled) {
+function nativeTdpKey() {
+    return JSON.stringify({ enabled: nativeTdpEnabled(), limit: store()?.clientSettings?.steamos_tdp_limit ?? null });
+}
+async function setNativeTdp(enabled, allowed = () => true) {
+    if (!allowed())
+        throw new Error("Sesión en transición; no se cambia el TDP nativo.");
     const update = resolveSetter();
     if (!update || nativeTdpEnabled() === null)
         throw new Error("Esta versión de Steam no expone su control TDP. Los controles de CPU siguen disponibles.");
@@ -126,6 +137,8 @@ async function setNativeTdp(enabled) {
         return;
     await update("steamos_tdp_limit_enabled", enabled);
     for (let i = 0; i < 50; i++) {
+        if (!allowed())
+            throw new Error("Sesión en transición; no se cambia el TDP nativo.");
         if (nativeTdpEnabled() === enabled)
             return;
         await new Promise(resolve => setTimeout(resolve, 40));
@@ -133,15 +146,30 @@ async function setNativeTdp(enabled) {
     throw new Error("Steam no confirmó el cambio de su control TDP.");
 }
 
-const getState = callable("get_state");
+function sessionContext() {
+    const suspend = globalThis.SuspendResumeStore;
+    return { awake: suspend?.m_bSuspending !== true, game_id: String(DFL.Router?.MainRunningApp?.appid || "0"),
+        native_tdp: nativeTdpEnabled(), tdp_key: nativeTdpKey() };
+}
+const frontendReady = callable("frontend_ready");
+const setRecovery = callable("set_recovery");
+const recoverPending = callable("recover_pending");
+const recoverCpu = callable("recover_cpu");
 const setCPU = callable("set_cpu");
 const setTDP = callable("set_tdp");
 const setTdpMode = callable("set_tdp_mode");
 let acquiredNativeTdp = false;
+let latest = null;
+let lastPulse = Date.now();
+let editRevision = 0;
+const sessionAvailable = () => !!latest?.session_ready && Date.now() - lastPulse < 4000;
 async function execute(command) {
+    const allowed = () => sessionAvailable() && command.lease === latest?.session_lease;
+    if (!allowed())
+        throw new Error("Orden anterior a una transición descartada. Espera 10 s y vuelve a ajustar.");
     let next;
     if (command.kind === "cpu")
-        next = await setCPU(command.config);
+        next = await setCPU(command.config, command.lease);
     else if (command.kind === "tdp") {
         if (nativeTdpEnabled() !== false) {
             controls.dropTdp();
@@ -149,27 +177,30 @@ async function execute(command) {
             next.error = "Steam ha retomado su TDP. El control TDP del plugin se ha desactivado.";
         }
         else
-            next = await setTDP(command.watts);
+            next = await setTDP(command.watts, command.lease);
     }
     else if (command.enabled) {
         const previous = nativeTdpEnabled();
-        await setNativeTdp(false);
+        acquiredNativeTdp = previous === true || acquiredNativeTdp;
         try {
-            next = await setTdpMode(true);
+            await setNativeTdp(false, allowed);
+            if (!allowed())
+                throw new Error("Transición durante la adquisición de TDP.");
+            next = await setTdpMode(true, command.lease);
             if (next.error)
                 throw new Error(next.error);
             acquiredNativeTdp = true;
         }
         catch (error) {
-            if (previous !== null)
-                await setNativeTdp(previous);
+            if (previous !== null && allowed())
+                await setNativeTdp(previous, allowed);
             throw error;
         }
     }
     else {
         next = await setTdpMode(false);
         if (!next.error) {
-            await setNativeTdp(true);
+            await setNativeTdp(true, allowed);
             acquiredNativeTdp = false;
         }
     }
@@ -182,13 +213,45 @@ async function execute(command) {
 const controls = new LiveQueue(execute);
 let reading = false;
 async function refresh() {
+    if (Date.now() - lastPulse > 4000) {
+        controls.discard();
+        if (latest)
+            latest = { ...latest, session_ready: false };
+    }
     if (reading || controls.pending)
         return;
     reading = true;
     try {
-        let next = await getState();
+        let next = await frontendReady(sessionContext());
         if (controls.pending)
             return;
+        lastPulse = Date.now();
+        if (!next.session_ready || next.session_lease !== latest?.session_lease)
+            controls.discard();
+        latest = next;
+        if (!next.session_ready) {
+            controls.publish(next);
+            return;
+        }
+        if (next.recovery?.phase === "ready" && next.recovery.id) {
+            const observedEdit = editRevision;
+            const identity = next.recovery.id;
+            next = await recoverPending(identity, next.session_lease, sessionContext());
+            if (controls.pending || observedEdit !== editRevision)
+                return;
+            latest = next;
+            if (next.recovery?.phase === "cpu-check" && sessionAvailable()) {
+                // Re-read Steam AFTER TDP, before reducing CPU as the final stage.
+                next = await recoverCpu(identity, next.session_lease, sessionContext());
+                if (controls.pending || observedEdit !== editRevision)
+                    return;
+                latest = next;
+            }
+        }
+        if (next.recovery?.pending || ["applying", "cpu-check", "applying-cpu"].includes(next.recovery?.phase || "")) {
+            controls.publish(next);
+            return; // Do not hand TDP back while its one-shot is pending.
+        }
         if (next.tdp_enabled && nativeTdpEnabled() !== false) {
             controls.dropTdp();
             next = await setTdpMode(false);
@@ -200,7 +263,7 @@ async function refresh() {
         }
         else if (acquiredNativeTdp && !next.desktop_busy && next.competitors.length === 0) {
             // A worker exit or mode handoff must not leave native Steam TDP disabled.
-            await setNativeTdp(true);
+            await setNativeTdp(true, sessionAvailable);
             acquiredNativeTdp = false;
         }
         controls.publish(next);
@@ -238,38 +301,55 @@ function Content() {
         return unsubscribe;
     }, []);
     function editCPU(change) {
+        editRevision++;
         const next = { ...configRef.current, ...change };
         configRef.current = next;
         setConfig(next);
         setError("");
-        controls.enqueue({ kind: "cpu", config: { smt: next.smt, cores: next.cores, threads: next.threads } });
+        controls.enqueue({ kind: "cpu", lease: state?.session_lease, config: { smt: next.smt, cores: next.cores, threads: next.threads } });
     }
     function editTDP(watts) {
+        editRevision++;
         const next = { ...configRef.current, watts: Math.round(watts) };
         configRef.current = next;
         setConfig(next);
         setError("");
-        controls.enqueue({ kind: "tdp", watts: next.watts });
+        controls.enqueue({ kind: "tdp", watts: next.watts, lease: state?.session_lease });
     }
     function editMode(enabled) {
+        editRevision++;
         setSteamOff(enabled);
         setError("");
-        controls.enqueue({ kind: "mode", enabled });
+        controls.enqueue({ kind: "mode", enabled, lease: state?.session_lease });
+    }
+    async function editRecovery(enabled) {
+        editRevision++;
+        try {
+            const next = await setRecovery(enabled);
+            latest = next;
+            controls.publish(next);
+        }
+        catch (error) {
+            setError(String(error));
+        }
     }
     if (!state)
         return SP_JSX.jsx(DFL.PanelSection, { title: "Ally Power", children: SP_JSX.jsx(Note, { children: error || "Leyendo el estado de tu Ally…" }) });
-    const blocked = !state.host.supported || !state.gaming || state.desktop_busy || state.competitors.length > 0;
+    const blocked = !state.session_ready || !state.host.supported || !state.gaming || state.desktop_busy || state.competitors.length > 0;
     const maxThreads = config.smt ? Math.min(state.cpu.max_threads, config.cores * 2) : config.cores;
     const status = error || state.error || state.warning ||
-        (!state.host.supported ? state.host.reason :
-            !state.gaming ? "Disponible en modo Gaming." :
-                state.desktop_busy ? "Cierra Ally Power de escritorio conservando los ajustes." :
-                    state.competitors.length ? `Desactiva el gestor: ${state.competitors.join(", ")}.` : "");
-    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSection, { children: SP_JSX.jsxs(Note, { children: [SP_JSX.jsx("strong", { children: state.power.ac ? "Con cargador" : "Batería" }), state.power.battery !== null ? ` · ${state.power.battery}%` : "", state.temperature !== null ? ` · ${state.temperature} °C` : "", SP_JSX.jsx("br", {}), "TDP configurado: ", SP_JSX.jsxs("strong", { children: [state.limits.stapm || "—", " W"] }), SP_JSX.jsx("br", {}), "CPU: ", state.cpu.cores, " n\u00FAcleos \u00B7 ", state.cpu.threads, " hilos \u00B7 SMT ", state.cpu.smt ? "activado" : "desactivado", status && SP_JSX.jsx("div", { role: "status", style: { color: "#ffcf8a", marginTop: 6 }, children: status })] }) }), SP_JSX.jsxs(DFL.PanelSection, { title: "Ajuste manual", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: "TDP de Steam desactivado", checked: steamOff, disabled: blocked || !nativeTdpAvailable(), description: !nativeTdpAvailable() ? "API TDP de Steam no disponible. CPU y SMT siguen disponibles." :
-                                steamOff ? "TDP controlado por el plugin. Al apagarlo vuelve a Steam." : "TDP nativo de Steam. SMT, núcleos e hilos siguen disponibles.", onChange: editMode }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.SliderField, { label: "TDP", value: config.watts, min: 3, max: state.power.max_watts, step: 1, showValue: true, valueSuffix: " W", disabled: blocked || !steamOff, onChange: editTDP }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: "SMT", checked: config.smt, disabled: blocked, description: "Independiente del control TDP. Los cambios se aplican autom\u00E1ticamente.", onChange: smt => editCPU({ smt, threads: smt ? Math.min(state.cpu.max_threads, configRef.current.cores * 2) : configRef.current.cores }) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.SliderField, { label: "N\u00FAcleos activos", value: config.cores, min: 1, max: state.cpu.max_cores, step: 1, showValue: true, disabled: blocked, onChange: value => {
+        (!state.session_ready ? "Esperando 10 s de sesión estable." :
+            !state.host.supported ? state.host.reason :
+                !state.gaming ? "Disponible en modo Gaming." :
+                    state.desktop_busy ? "Cierra Ally Power de escritorio conservando los ajustes." :
+                        state.competitors.length ? `Desactiva el gestor: ${state.competitors.join(", ")}.` : "");
+    return SP_JSX.jsxs(SP_JSX.Fragment, { children: [SP_JSX.jsx(DFL.PanelSection, { children: SP_JSX.jsxs(Note, { children: [SP_JSX.jsx("strong", { children: state.power.ac ? "Con cargador" : "Batería" }), state.power.battery !== null ? ` · ${state.power.battery}%` : "", state.temperature !== null ? ` · ${state.temperature} °C` : "", SP_JSX.jsx("br", {}), "TDP configurado: ", SP_JSX.jsxs("strong", { children: [state.limits.stapm || "—", " W"] }), SP_JSX.jsx("br", {}), "CPU: ", state.cpu.cores, " n\u00FAcleos \u00B7 ", state.cpu.threads, " hilos \u00B7 SMT ", state.cpu.smt ? "activado" : "desactivado", state.recovery?.enabled && SP_JSX.jsx("div", { style: { marginTop: 6 }, children: state.recovery.phase === "countdown" ? `Recuperando ajustes en ${state.recovery.seconds} s…` :
+                                state.recovery.phase === "restored" ? "Ajustes previos recuperados." : state.recovery.reason }), status && SP_JSX.jsx("div", { role: "status", style: { color: "#ffcf8a", marginTop: 6 }, children: status })] }) }), SP_JSX.jsxs(DFL.PanelSection, { title: "Ajuste manual", children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: "TDP de Steam desactivado", checked: steamOff, disabled: blocked || !nativeTdpAvailable(), description: !nativeTdpAvailable() ? "API TDP de Steam no disponible. CPU y SMT siguen disponibles." :
+                                steamOff ? "TDP controlado por el plugin. Al apagarlo vuelve a Steam." : "TDP nativo de Steam. SMT, núcleos e hilos siguen disponibles.", onChange: editMode }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.SliderField, { label: "TDP", value: config.watts, min: 3, max: state.power.max_watts, step: 1, showValue: true, valueSuffix: " W", disabled: blocked || !steamOff, onChange: editTDP }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: "SMT", checked: config.smt, disabled: blocked, description: state.recovery?.enabled ? "Antes de suspender se activa CPU completa; al despertar se recuperan tus ajustes tras la espera." :
+                                "Independiente del TDP. Antes de suspender se activa la CPU completa; vuelve a ajustarla tras despertar.", onChange: smt => editCPU({ smt, threads: smt ? Math.min(state.cpu.max_threads, configRef.current.cores * 2) : configRef.current.cores }) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.SliderField, { label: "N\u00FAcleos activos", value: config.cores, min: 1, max: state.cpu.max_cores, step: 1, showValue: true, disabled: blocked, onChange: value => {
                                 const cores = Math.round(value), current = configRef.current;
                                 editCPU({ cores, threads: current.smt ? Math.max(cores, Math.min(current.threads, cores * 2)) : cores });
-                            } }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.SliderField, { label: "Hilos activos", value: config.threads, min: config.cores, max: Math.max(config.cores + 1, maxThreads), step: 1, showValue: true, disabled: blocked || maxThreads === config.cores, onChange: value => editCPU({ threads: Math.min(maxThreads, Math.round(value)) }) }) })] })] });
+                            } }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.SliderField, { label: "Hilos activos", value: config.threads, min: config.cores, max: Math.max(config.cores + 1, maxThreads), step: 1, showValue: true, disabled: blocked || maxThreads === config.cores, onChange: value => editCPU({ threads: Math.min(maxThreads, Math.round(value)) }) }) })] }), SP_JSX.jsx(DFL.PanelSection, { title: "Suspensi\u00F3n", children: SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: "Recuperar ajustes al despertar", checked: state.recovery?.enabled || false, description: "Recupera una vez los ajustes que controlaba POWER tras 10 s de Gaming estable. No aplica perfiles al arrancar.", onChange: enabled => void editRecovery(enabled) }) }) })] });
 }
 var index = definePlugin(() => {
     const timer = setInterval(() => void refresh(), 2000);
@@ -279,10 +359,10 @@ var index = definePlugin(() => {
         onDismount() {
             clearInterval(timer);
             controls.stop();
-            if (acquiredNativeTdp) {
+            if (acquiredNativeTdp && sessionAvailable()) {
                 void setTdpMode(false).then(next => {
                     if (!next.error)
-                        return setNativeTdp(true);
+                        return setNativeTdp(true, sessionAvailable);
                 }).catch(() => { });
             }
         },

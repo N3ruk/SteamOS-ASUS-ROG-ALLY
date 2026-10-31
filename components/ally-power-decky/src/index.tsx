@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { PanelSection, PanelSectionRow, SliderField, ToggleField, staticClasses } from "@decky/ui";
+import { PanelSection, PanelSectionRow, SliderField, ToggleField, staticClasses, Router } from "@decky/ui";
 import { callable, definePlugin } from "@decky/api";
 import { LiveQueue, type Command, type CPUConfig } from "./live-queue";
-import { nativeTdpAvailable, nativeTdpEnabled, setNativeTdp } from "./steam-tdp";
+import { nativeTdpAvailable, nativeTdpEnabled, nativeTdpKey, setNativeTdp } from "./steam-tdp";
 
 type Config = CPUConfig & { watts: number };
 type State = {
@@ -13,36 +13,55 @@ type State = {
   limits: { stapm: number; fast: number; slow: number };
   tdp_enabled: boolean; tdp_target: number | null; cpu_target: CPUConfig | null;
   temperature: number | null; tdp_verified: boolean; tdp_note: string; warning: string;
+  session_ready: boolean; session_lease: string;
+  recovery?: {enabled:boolean;pending:boolean;id:string|null;phase:string;seconds:number|null;reason:string;wants_tdp:boolean};
 };
-const getState = callable<[], State>("get_state");
-const setCPU = callable<[config: CPUConfig], State>("set_cpu");
-const setTDP = callable<[watts: number], State>("set_tdp");
-const setTdpMode = callable<[enabled: boolean], State>("set_tdp_mode");
+type SessionContext = {awake:boolean;game_id:string;native_tdp:boolean|null;tdp_key:string};
+function sessionContext(): SessionContext {
+  const suspend = (globalThis as unknown as {SuspendResumeStore?:{m_bSuspending?:boolean}}).SuspendResumeStore;
+  return {awake:suspend?.m_bSuspending !== true,game_id:String(Router?.MainRunningApp?.appid || "0"),
+    native_tdp:nativeTdpEnabled(),tdp_key:nativeTdpKey()};
+}
+const frontendReady = callable<[context:SessionContext], State>("frontend_ready");
+const setRecovery = callable<[enabled:boolean], State>("set_recovery");
+const recoverPending = callable<[identity:string,lease:string,context:SessionContext], State>("recover_pending");
+const recoverCpu = callable<[identity:string,lease:string,context:SessionContext], State>("recover_cpu");
+const setCPU = callable<[config: CPUConfig, lease?: string], State>("set_cpu");
+const setTDP = callable<[watts: number, lease?: string], State>("set_tdp");
+const setTdpMode = callable<[enabled: boolean, lease?: string], State>("set_tdp_mode");
 let acquiredNativeTdp = false;
+let latest: State | null = null;
+let lastPulse = Date.now();
+let editRevision = 0;
+const sessionAvailable = () => !!latest?.session_ready && Date.now() - lastPulse < 4000;
 
 async function execute(command: Command): Promise<State> {
+  const allowed = () => sessionAvailable() && command.lease === latest?.session_lease;
+  if (!allowed()) throw new Error("Orden anterior a una transición descartada. Espera 10 s y vuelve a ajustar.");
   let next: State;
-  if (command.kind === "cpu") next = await setCPU(command.config);
+  if (command.kind === "cpu") next = await setCPU(command.config, command.lease);
   else if (command.kind === "tdp") {
     if (nativeTdpEnabled() !== false) {
       controls.dropTdp();
       next = await setTdpMode(false);
       next.error = "Steam ha retomado su TDP. El control TDP del plugin se ha desactivado.";
-    } else next = await setTDP(command.watts);
+    } else next = await setTDP(command.watts, command.lease);
   } else if (command.enabled) {
     const previous = nativeTdpEnabled();
-    await setNativeTdp(false);
+    acquiredNativeTdp = previous === true || acquiredNativeTdp;
     try {
-      next = await setTdpMode(true);
+      await setNativeTdp(false, allowed);
+      if (!allowed()) throw new Error("Transición durante la adquisición de TDP.");
+      next = await setTdpMode(true, command.lease);
       if (next.error) throw new Error(next.error);
       acquiredNativeTdp = true;
     } catch (error) {
-      if (previous !== null) await setNativeTdp(previous);
+      if (previous !== null && allowed()) await setNativeTdp(previous, allowed);
       throw error;
     }
   } else {
     next = await setTdpMode(false);
-    if (!next.error) { await setNativeTdp(true); acquiredNativeTdp = false; }
+    if (!next.error) { await setNativeTdp(true, allowed); acquiredNativeTdp = false; }
   }
   if (next.error) { controls.publish(next, next.error); throw new Error(next.error); }
   return next;
@@ -50,11 +69,35 @@ async function execute(command: Command): Promise<State> {
 const controls = new LiveQueue<State>(execute);
 let reading = false;
 async function refresh() {
+  if (Date.now() - lastPulse > 4000) {
+    controls.discard();
+    if (latest) latest = { ...latest, session_ready: false };
+  }
   if (reading || controls.pending) return;
   reading = true;
   try {
-    let next = await getState();
+    let next = await frontendReady(sessionContext());
     if (controls.pending) return;
+    lastPulse = Date.now();
+    if (!next.session_ready || next.session_lease !== latest?.session_lease) controls.discard();
+    latest = next;
+    if (!next.session_ready) { controls.publish(next); return; }
+    if (next.recovery?.phase === "ready" && next.recovery.id) {
+      const observedEdit = editRevision;
+      const identity = next.recovery.id;
+      next = await recoverPending(identity,next.session_lease,sessionContext());
+      if (controls.pending || observedEdit !== editRevision) return;
+      latest = next;
+      if (next.recovery?.phase === "cpu-check" && sessionAvailable()) {
+        // Re-read Steam AFTER TDP, before reducing CPU as the final stage.
+        next = await recoverCpu(identity,next.session_lease,sessionContext());
+        if (controls.pending || observedEdit !== editRevision) return;
+        latest = next;
+      }
+    }
+    if (next.recovery?.pending || ["applying","cpu-check","applying-cpu"].includes(next.recovery?.phase || "")) {
+      controls.publish(next); return; // Do not hand TDP back while its one-shot is pending.
+    }
     if (next.tdp_enabled && nativeTdpEnabled() !== false) {
       controls.dropTdp();
       next = await setTdpMode(false);
@@ -64,7 +107,7 @@ async function refresh() {
       acquiredNativeTdp = true;
     } else if (acquiredNativeTdp && !next.desktop_busy && next.competitors.length === 0) {
       // A worker exit or mode handoff must not leave native Steam TDP disabled.
-      await setNativeTdp(true);
+      await setNativeTdp(true, sessionAvailable);
       acquiredNativeTdp = false;
     }
     controls.publish(next);
@@ -98,23 +141,32 @@ function Content() {
     return unsubscribe;
   }, []);
   function editCPU(change: Partial<CPUConfig>) {
+    editRevision++;
     const next = { ...configRef.current, ...change };
     configRef.current = next; setConfig(next); setError("");
-    controls.enqueue({ kind: "cpu", config: { smt: next.smt, cores: next.cores, threads: next.threads } });
+    controls.enqueue({ kind: "cpu", lease: state?.session_lease, config: { smt: next.smt, cores: next.cores, threads: next.threads } });
   }
   function editTDP(watts: number) {
+    editRevision++;
     const next = { ...configRef.current, watts: Math.round(watts) };
     configRef.current = next; setConfig(next); setError("");
-    controls.enqueue({ kind: "tdp", watts: next.watts });
+    controls.enqueue({ kind: "tdp", watts: next.watts, lease: state?.session_lease });
   }
   function editMode(enabled: boolean) {
-    setSteamOff(enabled); setError(""); controls.enqueue({ kind: "mode", enabled });
+    editRevision++;
+    setSteamOff(enabled); setError(""); controls.enqueue({ kind: "mode", enabled, lease: state?.session_lease });
+  }
+  async function editRecovery(enabled:boolean) {
+    editRevision++;
+    try { const next=await setRecovery(enabled); latest=next;controls.publish(next); }
+    catch(error) {setError(String(error));}
   }
   if (!state) return <PanelSection title="Ally Power"><Note>{error || "Leyendo el estado de tu Ally…"}</Note></PanelSection>;
-  const blocked = !state.host.supported || !state.gaming || state.desktop_busy || state.competitors.length > 0;
+  const blocked = !state.session_ready || !state.host.supported || !state.gaming || state.desktop_busy || state.competitors.length > 0;
   const maxThreads = config.smt ? Math.min(state.cpu.max_threads, config.cores * 2) : config.cores;
   const status = error || state.error || state.warning ||
-    (!state.host.supported ? state.host.reason :
+    (!state.session_ready ? "Esperando 10 s de sesión estable." :
+      !state.host.supported ? state.host.reason :
       !state.gaming ? "Disponible en modo Gaming." :
       state.desktop_busy ? "Cierra Ally Power de escritorio conservando los ajustes." :
       state.competitors.length ? `Desactiva el gestor: ${state.competitors.join(", ")}.` : "");
@@ -125,6 +177,10 @@ function Content() {
         {state.temperature !== null ? ` · ${state.temperature} °C` : ""}<br />
         TDP configurado: <strong>{state.limits.stapm || "—"} W</strong><br />
         CPU: {state.cpu.cores} núcleos · {state.cpu.threads} hilos · SMT {state.cpu.smt ? "activado" : "desactivado"}
+        {state.recovery?.enabled && <div style={{marginTop:6}}>
+          {state.recovery.phase === "countdown" ? `Recuperando ajustes en ${state.recovery.seconds} s…` :
+           state.recovery.phase === "restored" ? "Ajustes previos recuperados." : state.recovery.reason}
+        </div>}
         {status && <div role="status" style={{ color: "#ffcf8a", marginTop: 6 }}>{status}</div>}</Note>
     </PanelSection>
     <PanelSection title="Ajuste manual">
@@ -136,7 +192,8 @@ function Content() {
       <PanelSectionRow><SliderField label="TDP" value={config.watts} min={3} max={state.power.max_watts}
         step={1} showValue valueSuffix=" W" disabled={blocked || !steamOff} onChange={editTDP} /></PanelSectionRow>
       <PanelSectionRow><ToggleField label="SMT" checked={config.smt} disabled={blocked}
-        description="Independiente del control TDP. Los cambios se aplican automáticamente."
+        description={state.recovery?.enabled ? "Antes de suspender se activa CPU completa; al despertar se recuperan tus ajustes tras la espera." :
+          "Independiente del TDP. Antes de suspender se activa la CPU completa; vuelve a ajustarla tras despertar."}
         onChange={smt => editCPU({ smt, threads: smt ? Math.min(state.cpu.max_threads, configRef.current.cores * 2) : configRef.current.cores })} /></PanelSectionRow>
       <PanelSectionRow><SliderField label="Núcleos activos" value={config.cores} min={1} max={state.cpu.max_cores}
         step={1} showValue disabled={blocked}
@@ -145,6 +202,11 @@ function Content() {
       <PanelSectionRow><SliderField label="Hilos activos" value={config.threads} min={config.cores} max={Math.max(config.cores + 1, maxThreads)}
         step={1} showValue disabled={blocked || maxThreads === config.cores}
         onChange={value => editCPU({ threads: Math.min(maxThreads, Math.round(value)) })} /></PanelSectionRow>
+    </PanelSection>
+    <PanelSection title="Suspensión">
+      <PanelSectionRow><ToggleField label="Recuperar ajustes al despertar" checked={state.recovery?.enabled || false}
+        description="Recupera una vez los ajustes que controlaba POWER tras 10 s de Gaming estable. No aplica perfiles al arrancar."
+        onChange={enabled=>void editRecovery(enabled)} /></PanelSectionRow>
     </PanelSection>
   </>;
 }
@@ -158,9 +220,9 @@ export default definePlugin(() => {
     </svg>,
     onDismount() {
       clearInterval(timer); controls.stop();
-      if (acquiredNativeTdp) {
+      if (acquiredNativeTdp && sessionAvailable()) {
         void setTdpMode(false).then(next => {
-          if (!next.error) return setNativeTdp(true);
+          if (!next.error) return setNativeTdp(true, sessionAvailable);
         }).catch(() => {});
       }
     },

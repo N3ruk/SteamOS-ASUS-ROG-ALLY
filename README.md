@@ -33,6 +33,7 @@ El centralizado no cambia el arranque, TDP, SMT ni dispositivos Bluetooth durant
 - Los originales de los lanzadores, incluidos enlaces simbólicos, se guardan antes de sustituirlos. No se escribe en `/usr/share/applications`.
 - Escritorio y Decky comparten exclusión de hardware; no se detienen otros gestores. Detección de procesos y bloqueo no garantizan detectar firmware ni gestores desconocidos.
 - En Decky, **«TDP de Steam desactivado»** aparece primero tras «Ajuste manual»: habilita únicamente TDP del plugin. SMT/CPU no dependen de ese interruptor. Cambios en tiempo real, sin botones Aplicar, Liberar ni Restaurar.
+- Ally Power prepara la CPU que aún controla antes de suspender. Su recuperación optativa espera 10 segundos de Gaming estable y reaplica una vez TDP y después CPU/SMT; no aplica perfiles al arrancar.
 - ALLY RGB controla solo iluminación; elegir otra zona no detiene sus efectos. Puede recuperar ajustes RGB guardados al cargar si el usuario activó esa opción.
 - Se verifica SHA256 antes de invocar cada paquete. Esto detecta daños; no es una firma de autor.
 - No se recopila telemetría ni se envían dispositivos/configuraciones a internet. La integración Decky utiliza solo `127.0.0.1:1337`, con token en memoria.
@@ -58,9 +59,11 @@ bash SteamOS-ASUS-ROG-ALLY-1.2-SteamOS.run --extract fuentes
 
 Código propio bajo MIT; **no** se aplica esa licencia a todo el contenido indiscriminadamente. RyzenAdj y recursos de terceros conservan sus licencias; los iconos PNG aportados por el usuario no se relicencian como MIT. Véase [THIRD-PARTY.md](THIRD-PARTY.md).
 
-El centralizado y ALLY RGB se distribuyen como **1.2**. ALLY RGB incluye recuperación
+El centralizado, Ally Power Decky y ALLY RGB se distribuyen como **1.2**. ALLY RGB incluye recuperación
 basada en pulsos de sesión y 10 segundos de continuidad, E/S confinada a scopes
 transitorios de user.slice y sin sondeo RGB fijo ni apagado/encendido forzado. Añade
-parejas 2–3/1–4, porcentajes de color/velocidad y conserva el guard de cierre IPC. Los demás componentes conservan versiones y paquetes.
-El individual `Ally-Power-Decky-1.1.0.zip` contiene el plugin nativo 1.1.2;
-consulta su catálogo. La release anterior permanece disponible y no se sobrescribe.
+parejas 2–3/1–4, porcentajes de color/velocidad y conserva el guard de cierre IPC.
+El individual `Ally-Power-Decky-1.2.zip` y el centralizado contienen el mismo plugin
+nativo POWER 1.2, con preparación de suspensión y recuperación optativa TDP→CPU.
+Los otros cinco individuales conservan sus paquetes. Se reutiliza el release v1.2;
+la release v1.0.0 permanece disponible y no se sobrescribe.

@@ -209,16 +209,16 @@ class DeckyDiscoveryTests(unittest.TestCase):
 
 
 class DeckyProtocolTests(unittest.IsolatedAsyncioTestCase):
-    def client(self, previous=None, active=False):
+    def client(self, previous=None, active=False, pending=False):
         client = decky.Client(None, None)
-        version = '1.1.2'
+        version = '1.2'
         async def call(route, *args):
             if route == 'loader/get_plugins':
                 if not hasattr(client, 'registered'):
                     return [previous] if previous else []
                 return [{'name': 'Ally Power', 'version': version}]
             if route == 'loader/call_plugin_method':
-                return {'active': active, 'version': version}
+                return {'active': active, 'version': version, 'recovery': {'pending': pending}}
             if route == 'utilities/confirm_plugin_install':
                 client.registered = True
         client.call = AsyncMock(side_effect=call)
@@ -227,7 +227,7 @@ class DeckyProtocolTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_only_expected_request_is_confirmed_no_hardware_methods(self):
         client = self.client()
-        result = await client.install(ROOT / 'test.zip', 'digest', '1.1.2')
+        result = await client.install(ROOT / 'test.zip', 'digest', '1.2')
         self.assertIn('backend comprobado', result)
         routes = [c.args[0] for c in client.call.call_args_list]
         self.assertNotIn('set_tdp', str(client.call.call_args_list))
@@ -239,21 +239,35 @@ class DeckyProtocolTests(unittest.IsolatedAsyncioTestCase):
         client = self.client()
         client.prompt.return_value[3] = 'wrong'
         with self.assertRaisesRegex(RuntimeError, 'no coincide'):
-            await client.install(ROOT / 'test.zip', 'digest', '1.1.2')
+            await client.install(ROOT / 'test.zip', 'digest', '1.2')
         self.assertNotIn('utilities/confirm_plugin_install', [c.args[0] for c in client.call.call_args_list])
 
     async def test_active_existing_plugin_never_updated(self):
         client = self.client({'name': 'Ally Power', 'version': '1.1.0'}, active=True)
         with self.assertRaisesRegex(RuntimeError, 'controla el hardware'):
-            await client.install(ROOT / 'test.zip', 'digest', '1.1.2')
+            await client.install(ROOT / 'test.zip', 'digest', '1.2')
         self.assertNotIn('utilities/install_plugin', [c.args[0] for c in client.call.call_args_list])
 
     async def test_update_makes_backup_before_request(self):
         client = self.client({'name': 'Ally Power', 'version': '1.1.0'})
         with patch.object(decky, 'backup_previous', return_value=Path('/tmp/backup.zip')) as backup:
-            result = await client.install(ROOT / 'test.zip', 'digest', '1.1.2')
+            result = await client.install(ROOT / 'test.zip', 'digest', '1.2')
         backup.assert_called_once_with('1.1.0')
         self.assertIn('/tmp/backup.zip', result)
+
+    async def test_inactive_current_version_can_update_with_backup(self):
+        client = self.client({'name': 'Ally Power', 'version': '1.2'})
+        with patch.object(decky, 'backup_previous', return_value=Path('/tmp/backup.zip')) as backup:
+            await client.install(ROOT / 'test.zip', 'digest', '1.2')
+        backup.assert_called_once_with('1.2')
+
+    async def test_pending_recovery_cannot_be_replaced(self):
+        client = self.client({'name': 'Ally Power', 'version': '1.2'}, pending=True)
+        with patch.object(decky, 'backup_previous') as backup:
+            with self.assertRaisesRegex(RuntimeError, 'recuperación pendiente'):
+                await client.install(ROOT / 'test.zip', 'digest', '1.2')
+            backup.assert_not_called()
+        self.assertNotIn('utilities/install_plugin', [c.args[0] for c in client.call.call_args_list])
 
 
 class SessionScriptTests(unittest.TestCase):

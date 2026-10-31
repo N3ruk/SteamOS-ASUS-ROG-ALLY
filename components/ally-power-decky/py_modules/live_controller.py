@@ -9,12 +9,14 @@ class LiveController:
         self.cpu_original = hw.cpu_state(self.groups)
         self.cpu_target = None
         self.cpu_changed = False
+        self.cpu_owned_state = None
         self.tdp_enabled = False
         self.tdp_original = None
         self.tdp_target = None
         self.tdp_changed = False
         self.last_limits = hw.remembered_limits() or hw.asus_limits()
         self.warning = ''
+        self.session_live = True
 
     def allowed(self):
         others = competitors()
@@ -58,6 +60,9 @@ class LiveController:
             except Exception as rollback:
                 raise RuntimeError(f'{exc}; restauración de CPU incompleta: {rollback}') from exc
             raise
+        finally:
+            actual = hw.cpu_state(self.groups)
+            self.cpu_owned_state = {'smt': actual['smt'], 'online': list(actual['online'])}
         self.cpu_target = dict(config)
         self.cpu_changed = True
         self.warning = ''
@@ -89,6 +94,38 @@ class LiveController:
     def apply(self, _config):
         raise ValueError('Utiliza las operaciones independientes de CPU y TDP.')
 
+    def prepare_sleep(self, owned_cpu=None):
+        """Normalize ONLY a CPU configuration still owned by us, before PM.
+
+        logind's delay FD is held by the parent; this runs in the scoped worker
+        before user.slice freezes. Never touches RyzenAdj, TDP, MCU or HID.
+        """
+        self.tdp_enabled = False
+        self.tdp_target = None
+        self.tdp_original = None
+        self.tdp_changed = False
+        target = self.cpu_owned_state if self.cpu_changed else owned_cpu
+        # A normal transaction always records the exact post-transaction state,
+        # including partial rollback failure. Tests/legacy objects can still
+        # supply a validated target config, never an arbitrary hardware path.
+        if target is None and self.cpu_changed:
+            target = self.cpu_target or owned_cpu
+        if target:
+            # Safety relinquish can happen after Gamescope exits, but never
+            # over a new detected manager or a CPU state different from ours.
+            if competitors():
+                raise RuntimeError('Otro gestor activo: no se normaliza su CPU.')
+            actual = hw.cpu_state(self.groups)
+            expected = (set(target['online']) if 'online' in target else
+                        hw.target_cpus(self.groups, target['cores'], target['threads'], target['smt']))
+            if set(actual['online']) != expected or actual['smt'] != target['smt']:
+                raise RuntimeError('CPU modificada por otro gestor: no se normaliza encima de sus ajustes.')
+            hw.write_cpus(True, {cpu for group in self.groups for cpu in group})
+            self.cpu_changed = False
+            self.cpu_target = None
+            self.cpu_owned_state = None
+        self.warning = 'CPU liberada antes de suspender; sin reaplicación al despertar.'
+
     def restore(self):
         # Crash safety, not a user-visible action. Never restore a domain not owned.
         if competitors() or not in_gaming():
@@ -113,6 +150,8 @@ class LiveController:
             raise RuntimeError('Restauración incompleta: ' + '; '.join(errors))
 
     def tick(self):
+        if not self.session_live:
+            return self.status()
         if competitors() or not in_gaming():
             return self.status()
         source = hw.power_source()
@@ -129,6 +168,7 @@ class LiveController:
             self.last_limits = hw.remembered_limits() or hw.asus_limits()
         return {'power': source or hw.power_source(), 'cpu': hw.cpu_state(self.groups),
                 'limits': self.last_limits, 'target': None, 'cpu_target': self.cpu_target,
+                'cpu_owned': self.cpu_changed, 'cpu_owned_state': self.cpu_owned_state,
                 'tdp_enabled': self.tdp_enabled, 'tdp_target': self.tdp_target,
                 'tdp_verified': self.tdp_enabled and hw.FALLBACK_LIMITS is None,
                 'tdp_note': 'Límite configurado/recordado; no es el consumo real medido de la APU.',

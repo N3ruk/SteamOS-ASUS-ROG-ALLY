@@ -1,6 +1,6 @@
 {
   "name": "ally-power-decky",
-  "version": "1.1.2",
+  "version": "1.2",
   "description": "TDP, SMT, n\u00facleos e hilos para ROG Ally, con exclusi\u00f3n entre gestores.",
   "type": "module",
   "private": true,

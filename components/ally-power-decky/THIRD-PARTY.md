@@ -29,3 +29,9 @@ Python y Decky Loader son dependencias del sistema. Este plugin no usa GTK,
 polkit, un servicio systemd propio ni la imagen PNG de la app de escritorio.
 Los nombres ASUS/ROG, Steam y Decky pertenecen a sus respectivos titulares;
 este proyecto no está afiliado ni avalado por ellos.
+
+## dbus-next 0.2.3
+
+Cliente D-Bus tipado, MIT. Copia Python en vendor/dbus_next y licencia en
+licenses/dbus-next-LICENSE. Solo para logind delay/PrepareForSleep; sin red ni
+servicios adicionales. Fuente: https://github.com/altdesktop/python-dbus-next

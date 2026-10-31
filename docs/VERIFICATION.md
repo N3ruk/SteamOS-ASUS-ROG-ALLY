@@ -2,10 +2,13 @@
 
 ## Suite 1.2
 
-- 46 pruebas de selección, catálogo, integridad, instaladores y adaptadores Decky.
+- 48 pruebas de selección, catálogo, integridad, instaladores y adaptadores Decky,
+  incluida actualización POWER 1.2 y rechazo de recuperación pendiente.
+- ALLY POWER Decky: 115 pruebas Python y 16 JavaScript; TypeScript/Rollup correctos.
 - ALLY RGB: 124 pruebas Python y 18 JavaScript; TypeScript estricto y Rollup correctos.
-- 188 pruebas automatizadas de la suite y ALLY RGB en esta verificación. Los números
-  se refieren a casos de prueba, no a equipos físicos.
+
+Los números se refieren a casos de prueba, no a equipos físicos. Las comprobaciones
+anteriores de RGB se conservan; el refresco POWER no cambia sus fuentes ni su paquete.
 
 La interfaz gráfica se prueba con todas las casillas desmarcadas. No ofrece Ally Power
 Decky ni ALLY RGB cuando Decky está inactivo o faltan los requisitos de cada componente.
@@ -25,9 +28,10 @@ no muestran el token de la conexión. Nada descarga dependencias ni habilita ser
 
 Los siete ZIP se extraen en temporal y se verifican `.run`, SHA256, manifiesto, catálogo,
 fuentes, licencias y `--check --json`, sin instalar. Se contrastan los payloads ejecutables
-con sus fuentes, incluyendo el ZIP nativo ALLY RGB 1.2. Los cinco individuales anteriores
-se conservan byte a byte al construir `--only central ally-rgb`. El centralizado contiene
-los seis componentes y el individual RGB solo ese componente.
+con sus fuentes, incluyendo todos los archivos del ZIP nativo POWER 1.2 y el
+manifiesto ALLY RGB 1.2. Los cinco individuales ajenos se conservan byte a byte al
+construir `--only central ally-power-decky` (o central/RGB en un refresco RGB).
+El centralizado contiene los seis componentes y cada individual solo su componente.
 
 Las fechas y orden de archivos son fijos. Un build selectivo repetido debe dar los mismos
 hashes de los siete ZIP y SHA256SUMS. Esto comprueba integridad, no es una firma de autor.
@@ -77,9 +81,18 @@ no reinstala el plugin ni cambia la configuración del host.
 
 ## Otras aplicaciones y límites
 
-Se conservan los contenidos de Ally Power (escritorio 1.0.0 y plugin nativo 1.1.2) y los
-otros individuales. Sus comprobaciones previas incluyeron 31 pruebas de escritorio y
-51 Python + 8 JavaScript de Ally Power Decky, sin escrituras reales TDP/SMT. Las instantáneas
+ALLY POWER Decky 1.2 incorpora scope de E/S verificado, guardas de sesión/freezer,
+preparación CPU completa mediante logind delay antes de dormir y recuperación
+optativa TDP→CPU tras 10 s de pulsos continuos. Las pruebas simuladas cubren
+cancelaciones, plazos, propiedad del hardware, cambios nativos Steam y separación
+de dominios. Carga real de frontend/backend, persistencia del interruptor y probes
+de scope/inhibidor comprobados sin cambiar CPU/TDP para probar. El usuario confirmó
+después el funcionamiento en Gaming de la preparación y, por separado, de la
+recuperación automática. No indicó número de ciclos para esta última validación.
+Solo después de su confirmación se refrescan instaladores y release.
+
+Se conservan escritorio 1.0.0 y los otros cinco paquetes individuales ajenos a este
+refresco. Sus comprobaciones previas incluyeron 31 pruebas de escritorio. Las instantáneas
 de topología se generan en el destino, nunca se empaqueta la del equipo constructor.
 
 La app Bluetooth fue probada manualmente por el usuario. La instalación completa en

@@ -21,8 +21,15 @@ def verify_embedded_power(extracted, expected, temporary):
             package = json.loads(archive.read('ally-power-decky/package.json'))
             if package['version'] != CATALOG['ally-power-decky']['version']:
                 raise RuntimeError('El ZIP nativo Decky no coincide con la versión del catálogo.')
-            for name in ('py_modules/power_backend.py', 'py_modules/manager.py', 'dist/index.js'):
-                if archive.read('ally-power-decky/' + name) != (component / name).read_bytes():
+            for entry in archive.infolist():
+                name = entry.filename
+                relative = Path(name)
+                if entry.is_dir():
+                    continue
+                if relative.parts[0] != 'ally-power-decky' or '..' in relative.parts:
+                    raise RuntimeError('Ruta insegura en payload POWER.')
+                source = component.joinpath(*relative.parts[1:])
+                if not source.is_file() or archive.read(name) != source.read_bytes():
                     raise RuntimeError('Payload Decky y fuentes divergen: ' + name)
             if any(Path(name).name == 'cpu-topology.json' for name in archive.namelist()):
                 raise RuntimeError('No se debe distribuir la topología CPU de otro equipo.')

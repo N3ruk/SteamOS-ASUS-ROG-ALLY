@@ -20,6 +20,14 @@ CPU_DEBUG = Path('/sys/kernel/debug/x86/topo/cpus')
 TOPOLOGY_FILE = Path('/usr/local/lib/desktop-power/cpu-topology.json')
 PLUGIN_TOPOLOGY_FILE = Path('/var/lib/ally-power-decky/cpu-topology.json')
 TOPOLOGY_CACHE = None
+IO_GUARD = lambda: None  # Set only by the session-scoped Decky worker.
+IO_DEADLINE = None
+
+
+def check_io():
+    IO_GUARD()
+    if IO_DEADLINE is not None and time.monotonic() >= IO_DEADLINE:
+        raise RuntimeError('Preparación CPU caducada: no se realizan más escrituras.')
 
 
 def cpu_identity():
@@ -274,6 +282,7 @@ def validate(config, source, groups):
 
 
 def limits():
+    check_io()
     global FALLBACK_LIMITS
     if FALLBACK_LIMITS is not None:
         return dict(FALLBACK_LIMITS)
@@ -302,6 +311,7 @@ def limits():
 
 
 def write_limits(values):
+    check_io()
     global FALLBACK_LIMITS
     args = [RYZENADJ, f"--stapm-limit={round(values['stapm'] * 1000)}",
             f"--fast-limit={round(values['fast'] * 1000)}",
@@ -327,18 +337,22 @@ def write_limits(values):
 
 
 def write_cpus(smt, wanted):
+    check_io()
     control = read(CPU / 'smt/control')
     if control not in ('on', 'off'):
         raise RuntimeError(f'El sistema no permite cambiar SMT ({control}).')
     if 0 not in wanted:
         raise ValueError('CPU 0 no se puede apagar.')
     if (control == 'on') != smt:
+        check_io()
         (CPU / 'smt/control').write_text('on' if smt else 'off')
     online = cpu_list(read(CPU / 'online'))
     for number in sorted(wanted - online):
+        check_io()
         (CPU / f'cpu{number}/online').write_text('1')
     online = cpu_list(read(CPU / 'online'))
     for number in sorted(online - wanted, reverse=True):
+        check_io()
         if number == 0:
             raise ValueError('CPU 0 no se puede apagar.')
         (CPU / f'cpu{number}/online').write_text('0')
@@ -436,7 +450,8 @@ class Controller:
                 'temperature': temperature(), 'warning': self.warning}
 
 
-def serve():
+def serve(session=None, restore_on_exit=True):
+    global IO_DEADLINE
     if os.geteuid() != 0:
         raise RuntimeError('Se necesitan permisos de administrador.')
     # Prevent simultaneous controllers, without exposing a network or D-Bus API.
@@ -472,17 +487,27 @@ def serve():
     threading.Thread(target=reader, daemon=True).start()
     emit('ready', state=controller.status(), capabilities=['quit_keep'])
     contact = time.monotonic()
-    keep_settings = False
+    keep_settings = not restore_on_exit
     try:
         while time.monotonic() - contact < 20:
             try:
                 request = requests.get(timeout=1)
             except queue.Empty:
                 request = None
+            # A frozen worker resumes here with stale requests in its pipe. Exit
+            # without rollback, clamping or restoration at that PM boundary.
+            if session:
+                session.check()
+                if request is not None and (type(request.get('epoch')) not in (int, float)
+                                            or abs(request['epoch'] - session.baseline) > .25):
+                    from .session_io import SessionBoundary
+                    raise SessionBoundary('Orden de otro ciclo de suspensión rechazada.')
             if request is not None:
                 contact = time.monotonic()
                 try:
                     action = request.get('action')
+                    if action in ('apply_cpu', 'apply_tdp', 'tdp_mode'):
+                        IO_DEADLINE = None  # New explicit, current-epoch request.
                     if action == 'yield':
                         # A deliberate cross-mode handoff must not restore over
                         # another manager or perform a last-minute hardware write.
@@ -498,6 +523,13 @@ def serve():
                     if action == 'tdp_mode':
                         controller.set_tdp_mode(request.get('enabled'))
                         emit('tdp_mode', state=controller.status())
+                    elif action == 'prepare_sleep':
+                        deadline = request.get('deadline')
+                        if type(deadline) not in (int, float) or not time.monotonic() < deadline < time.monotonic() + 3:
+                            raise RuntimeError('Preparación CPU caducada/no autorizada.')
+                        IO_DEADLINE = deadline
+                        controller.prepare_sleep(request.get('owned_cpu'))
+                        emit('sleep_prepared', state=controller.status())
                     elif action == 'apply_cpu':
                         controller.apply_cpu(request.get('config'))
                         emit('cpu_applied', state=controller.status())
@@ -512,6 +544,8 @@ def serve():
                         emit('restored', state=controller.status())
                     elif action != 'ping':
                         raise ValueError('Acción no válida.')
+                    elif session:
+                        controller.session_live = request.get('live') is True
                 except Exception as exc:
                     emit('error', message=str(exc), state=controller.status())
             try:
@@ -519,7 +553,7 @@ def serve():
             except Exception as exc:
                 emit('error', message=str(exc))
     finally:
-        if not keep_settings:
+        if not keep_settings and restore_on_exit:
             controller.restore()
         try:
             emit('closed', state=controller.status(), kept=keep_settings)

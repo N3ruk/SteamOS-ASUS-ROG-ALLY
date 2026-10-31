@@ -40,3 +40,8 @@ test('missing Steam API refuses TDP changes explicitly',async()=>{
   await assert.rejects(()=>api.setNativeTdp(false),/CPU siguen disponibles/);
   assert.equal(calls.length,0);
 });
+test('session guard refuses native setter while preparing or resuming',async()=>{
+  const {api,calls}=load();
+  await assert.rejects(()=>api.setNativeTdp(false,()=>false),/Sesión en transición/);
+  assert.equal(calls.length,0);
+});

@@ -23,7 +23,7 @@ NAMES = {
     'return-gaming': 'Volver-al-Modo-Gaming-1.0.0',
     'default-mode': 'Alternar-Arranque-SteamOS-1.0.0',
     'ally-power': 'Ally-Power-Escritorio-1.0.0',
-    'ally-power-decky': 'Ally-Power-Decky-1.1.0',
+    'ally-power-decky': 'Ally-Power-Decky-1.2',
     'ally-rgb': 'ALLY-RGB-1.2',
     'bluetooth-trust-manager': 'Confianza-Bluetooth-1.0.0',
 }

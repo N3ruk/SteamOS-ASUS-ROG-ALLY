@@ -10,8 +10,8 @@ ROOT = Path(__file__).resolve().parent
 
 def build():
     version = json.loads((ROOT / 'package.json').read_text())['version']
-    files = [ROOT / name for name in ['main.py', 'worker.py', 'plugin.json', 'package.json', 'README.md', 'VERIFICACION.md', 'THIRD-PARTY.md']]
-    for directory in ['py_modules', 'dist', 'bin', 'licenses']:
+    files = [ROOT / name for name in ['main.py', 'worker.py', 'sleep_worker.py', 'plugin.json', 'package.json', 'README.md', 'VERIFICACION.md', 'THIRD-PARTY.md']]
+    for directory in ['py_modules', 'dist', 'bin', 'licenses', 'vendor']:
         files += sorted(p for p in (ROOT / directory).rglob('*')
                         if p.is_file() and '__pycache__' not in p.parts)
     if not (ROOT / 'dist/index.js').is_file():

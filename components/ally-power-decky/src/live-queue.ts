@@ -1,5 +1,5 @@
 export type CPUConfig = { smt: boolean; cores: number; threads: number };
-export type Command = { kind: "cpu"; config: CPUConfig } | { kind: "tdp"; watts: number } | { kind: "mode"; enabled: boolean };
+export type Command = ({ kind: "cpu"; config: CPUConfig } | { kind: "tdp"; watts: number } | { kind: "mode"; enabled: boolean }) & { lease?: string };
 
 /** Serialize hardware transactions and coalesce slider repeats to the latest value. */
 export class LiveQueue<T> {
@@ -14,6 +14,11 @@ export class LiveQueue<T> {
   subscribe(fn: (result: T | null, error: string) => void) { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; }
   publish(result: T | null, error = "") { for (const fn of this.listeners) fn(result, error); }
   dropTdp() { this.queue = this.queue.filter(c => c.kind !== "tdp"); }
+  discard() {
+    this.queue = [];
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
+  }
   enqueue(command: Command) {
     if (this.stopped) return;
     this.queue = this.queue.filter(c => c.kind !== command.kind);

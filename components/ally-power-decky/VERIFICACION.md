@@ -1,5 +1,47 @@
 # Verificación
 
+## Recuperación optativa 1.2 — validada (31/10/2026)
+
+- El usuario confirmó funcional la preparación CPU previa y posteriormente la
+  nueva recuperación automática tras despertar en Gaming. No indicó número de
+  ciclos para esta última validación ni se extrapola a otras Ally.
+- 115 pruebas Python y 16 JavaScript aprobadas, TypeScript/Rollup correctos.
+  Carga real frontend/backend 1.2, opción activada y persistencia tras recarga
+  comprobadas. Los probes nativos verificaron scope y liberación del inhibidor,
+  sin cambiar CPU/TDP ni forzar una suspensión para probar.
+- Snapshot solo en memoria; opción persistida sin perfiles/arranque automático.
+  Cuenta atrás 10s de pulsos, reinicio con hueco>4s, plazo60s, cancelación manual/
+  sesión/juego/gestores y verificación CPU aún igual a la preparación.
+- Recuperación serial TDP primero, CPU al final. Nueva lectura nativa entre
+  etapas y nuevo inhibidor antes de reducir CPU. Cada etapa se consume una vez.
+- Watch logind para TDP sin inhibidor ni CPU/HID; se reconoce incluso el aviso
+  sin FD para no dejar una espera del ciclo anterior. EOF de worker por cambio
+  de época es esperado y no borra el snapshot.
+- Cobertura simulada de CPU/TDP independientes, cargador perdido, cambio de
+  perfil nativo, edición durante adquisición, duplicados, fallo de preparación,
+  estado transitorio de Steam, tiempo caducado, cold boot sin aplicar y ajustes
+  inmutables. TypeScript/Rollup y pruebas Python/JS antes de instalar.
+
+
+
+## Candidata 1.2 — suspensión (31/10/2026)
+
+- Kernel nocturno: CPU8–15 offline a01:54:04; CPU7/6/5/4 offline después;
+  CPU3 watchdog remoto sin respuesta a01:54:15; entrada s2idle sin retorno
+  persistido. Es compatible con fallo SMT/CPU reducida documentado upstream,
+  no una demostración única de causalidad. Pérdida de controles sin traza concluyente.
+- Auxiliar enrolado en scope user.slice antes de iniciar el controlador.
+  Guardas por ciclo de suspensión y freezer en cada frontera de hardware.
+- logind delay FD adquirido antes de reducir CPU; preparado CPU completo antes
+  de PM, sin TDP ni HID. Rollback/normalización rechazan sesiones caducadas y
+  cambios de otro gestor; fallo de comunicación no restaura hardware.
+- Pruebas con sysfs/procesos/D-Bus simulados, TypeScript y Rollup. No se prueba
+  suspensión ni TDP/SMT sobre el host. La preparación y recuperación
+  posteriores fueron validadas en Gaming por el usuario antes de publicar.
+- Las secciones siguientes son históricas: las restauraciones ante caída de
+  1.1.x no describen el comportamiento de 1.2.
+
+
 ## Versión 1.1.2 — SMT y CPUs offline
 
 - Estado real antes de corregir: SMT off, CPUs online 0–7; el backend declaraba

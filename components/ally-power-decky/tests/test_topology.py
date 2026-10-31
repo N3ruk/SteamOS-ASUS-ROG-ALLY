@@ -114,6 +114,7 @@ class ManagerHotplugTests(unittest.IsolatedAsyncioTestCase):
             with patch.object(hw, 'CPU', kernel.cpu), patch.object(hw, 'CPU_DEBUG', kernel.debug), \
                  patch.object(hw, 'TOPOLOGY_CACHE', None):
                 manager = m.Manager()
+                manager._write_gate = AsyncMock()
                 manager._start = AsyncMock()
                 manager._request = AsyncMock()
                 manager.get_state = AsyncMock(return_value={})

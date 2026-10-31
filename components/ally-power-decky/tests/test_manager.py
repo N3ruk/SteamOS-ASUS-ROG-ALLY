@@ -94,6 +94,24 @@ class DiscoveryTests(unittest.TestCase):
 
 
 class ManagerTests(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        # These legacy tests isolate non-session behavior; boundary tests below
+        # exercise the real lease and write gate separately.
+        self.gate = patch.object(m.Manager, '_write_gate', new_callable=AsyncMock)
+        self.gate.start(); self.addCleanup(self.gate.stop)
+        self.sleep_guard = patch.object(m, 'SleepGuard')
+        fake = self.sleep_guard.start().return_value
+        fake.arm = AsyncMock(); fake.close = AsyncMock(); fake.fd = None
+        self.addCleanup(self.sleep_guard.stop)
+        self.observe = patch('py_modules.session_lease.SessionLease.observe', return_value=True)
+        self.observe.start(); self.addCleanup(self.observe.stop)
+        self.ready = patch('py_modules.session_lease.SessionLease.__init__', self.init_lease)
+        self.ready.start(); self.addCleanup(self.ready.stop)
+
+    @staticmethod
+    def init_lease(lease):
+        lease.ready = True; lease.token = 'test'; lease.epoch = 0
+
     async def test_conflicts_and_desktop_busy_block_before_worker_creation(self):
         for status in [state(competitors=['PowerTools']), state(desktop_busy=True),
                        state(gaming=False), state(host={'supported': False, 'reason': 'no soportado'})]:
@@ -174,7 +192,7 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
                           side_effect=[None, asyncio.CancelledError()]):
             with self.assertRaises(asyncio.CancelledError):
                 await manager.monitor()
-        manager._send.assert_awaited_once_with({'action': 'ping'})
+        manager._send.assert_awaited_once_with({'action': 'ping', 'live': True})
         manager._stop.assert_not_called()
 
     async def test_worker_eof_fails_pending_request_not_hang(self):

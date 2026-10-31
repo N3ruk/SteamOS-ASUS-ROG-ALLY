@@ -25,7 +25,7 @@ Vuelve a ejecutar el paquete deseado. Los lanzadores mantienen la copia original
 
 Cierra Ally Power (incluida la bandeja) antes de actualizarlo; cierra Confianza Bluetooth antes de sustituirla. No se cierran por ti.
 
-Decky: sal de Gaming para que el plugin deje de controlar hardware. Se comprueba `get_state.active` y se guarda una copia ZIP antes de sustituir una versión reconocida (según el catálogo de versiones admitidas de cada adaptador). Si no se localiza la carpeta o no se puede leer, no se actualiza. Para rutas no estándar, define `DECKY_PLUGIN_DIR` como carpeta padre de `ally-power-decky` o `ally-rgb`. La integración automática se comprobó contra la API local de Decky **3.3.0**; si cambia, el adaptador falla con un mensaje, no fuerza un reinicio ni copia archivos como root. La conexión WebSocket puede reemplazar brevemente la conexión de su frontend, que vuelve a conectarse.
+Decky: sal de Gaming para que el plugin deje de controlar hardware. Se comprueba `get_state.active` y que no haya recuperación pendiente, y se guarda una copia ZIP antes de sustituir una versión reconocida (según el catálogo de versiones admitidas de cada adaptador, incluido POWER 1.2). Si no se localiza la carpeta o no se puede leer, no se actualiza. Para rutas no estándar, define `DECKY_PLUGIN_DIR` como carpeta padre de `ally-power-decky` o `ally-rgb`. La integración automática se comprobó contra la API local de Decky **3.3.0**; si cambia, el adaptador falla con un mensaje, no fuerza un reinicio ni copia archivos como root. La conexión WebSocket puede reemplazar brevemente la conexión de su frontend, que vuelve a conectarse.
 
 ## Desinstalar
 
