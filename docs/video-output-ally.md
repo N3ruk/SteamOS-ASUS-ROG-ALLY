@@ -1,86 +1,38 @@
 # Video Output ALLY for DOCKs 1.0 — Decky
 
-Nuevo componente de la colección **SteamOS ASUS ROG ALLY 1.3**. Selecciona la salida
-de vídeo de Gaming desde QAM en una ASUS ROG Ally RC71L con dock. No cambia audio,
-TDP, CPU/SMT, iluminación ni firmware del dock.
+[Español](es/video-output-ally.md)
 
-## Funciones
+Added in **SteamOS ASUS ROG ALLY 1.3**. Select the Gaming display from QAM on an ASUS ROG Ally RC71L with a dock. Does not change audio, TDP, CPU/SMT, lighting or dock firmware.
 
-- Un panel de salidas de vídeo, sin Manage Outputs, Settings, About ni selector de audio.
-- Pantalla interna identificada como **ASUS ALLY**.
-- Monitores externos por etiqueta ya guardada o fabricante/modelo de su EDID;
-  conector solo como alternativa si faltan datos. Los nombres iguales se distinguen.
-- Estado de salida activa, cambio en curso y errores. Desde escritorio es solo lectura.
-- Conserva las etiquetas y preferencias existentes. Una instalación nueva no impone
-  el AOC ni otro monitor: la selección es manual. No se distribuyen EDID ni ajustes
-  del equipo constructor. La API de mantenimiento conserva la configuración de vídeo
-  previa; no hay página de configuración nueva.
+## Features and requirements
 
-## Requisitos y alcance
+- Video-only panel; no Manage Outputs, Settings, About or audio selector.
+- Internal display labeled **ASUS ALLY**; external displays use saved labels or EDID manufacturer/model, falling back to connector names. Duplicate names are distinguished.
+- Active-output/progress/error status; Desktop Mode is read-only.
+- Existing labels/preferences retained. Fresh installs impose no monitor choice and distribute no builder EDID/settings. Maintenance API retains prior video configuration; no new settings page.
 
-SteamOS x86_64, ROG Ally RC71L con AMDGPU/Gamescope, Decky Loader instalado **y activo**,
-Python3 y aiohttp del sistema. Necesita gamescopectl, xprop, busctl, runuser y pgrep.
-El instalador no resuelve dependencias ni instala o activa Decky. Otros modelos,
-docks y versiones de SteamOS requieren validación; no se promete compatibilidad universal.
+Requires x86_64 SteamOS, RC71L with AMDGPU/Gamescope, installed **active** Decky, system Python3/aiohttp, gamescopectl, xprop, busctl, runuser and pgrep. Dependencies/Loader are not installed automatically. Other models, docks and SteamOS versions need validation. Plugin version is **1.0**; suite **1.3**; POWER/RGB remain 1.2.
 
-El plugin se identifica como **1.0**; la colección/centralizado pasa a **1.3** por
-su incorporación. POWER y RGB continúan en 1.2, sin cambios de recuperación.
+## Install, update and recover
 
-## Instalar, actualizar y recuperar
+Download `Video-Output-ALLY-for-DOCKs-1.0.zip` or suite 1.3. Extract/run its `.run` from Desktop without sudo. Nothing starts selected. Individual contains only video; central offers seven independent choices.
 
-Descarga `Video-Output-ALLY-for-DOCKs-1.0.zip` o el centralizado 1.3, extrae y ejecuta
-su `.run` desde escritorio, sin sudo. Nada se selecciona inicialmente. El individual
-incluye únicamente este componente; el central ofrece siete opciones independientes.
+Uses Decky's native installer with exact hash/request. Upgrades require a recognized backend outside Gaming without retained outputs/pending operation. Backups go to `$XDG_STATE_HOME/steamos-ally-suite/output-manager/`. Other plugins/Steam/Loader are not stopped/restarted. Reconnection never resends confirmation. Version, backend response and installed bytes are checked; a per-user lock blocks simultaneous video installs.
 
-La suite utiliza el instalador nativo de Decky con hash y solicitud exactos. Antes de
-actualizar, exige un backend reconocido fuera de Gaming, sin salidas retenidas ni
-operación pendiente; guarda ZIP recuperable en
-`$XDG_STATE_HOME/steamos-ally-suite/output-manager/`. No detiene otros plugins ni
-reinicia Steam/Loader. Una reconexión no reenvía la confirmación. Comprueba versión,
-respuesta del backend y bytes instalados. Un bloqueo evita dos instalaciones de
-vídeo simultáneas desde esta suite para el mismo usuario.
+For manual Decky installation, extract with `--extract sources` and use `sources/payloads/Video-Output-ALLY-for-DOCKs-1.0.zip`, whose top folder is `output-manager/`, **not** the outer installer ZIP.
 
-Para instalar directamente en Decky, `--extract fuentes` permite obtener
-`fuentes/payloads/Video-Output-ALLY-for-DOCKs-1.0.zip`, el ZIP nativo con carpeta
-superior `output-manager/`. **No** es el ZIP exterior que contiene el `.run`.
+Remove original **Output Manager** through Decky first, retaining settings, and wait for completion. Unknown folders are not overwritten and two controllers are not run together. Internal name stays `output-manager` for settings/existing startup-helper compatibility; visible name is Video Output ALLY for DOCKs. Recognized adaptation versions 1.4.0 local / 1.0 can update with backup.
 
-Si existe el **Output Manager** original, retíralo primero desde Decky conservando
-sus ajustes; espera a que termine antes de pedir instalar este plugin. La suite
-no ejecuta dos controladores ni sobrescribe carpetas desconocidas. Se mantiene
-el nombre interno `output-manager` por compatibilidad de ajustes y del helper de
-arranque previo; el nombre visible es Video Output ALLY for DOCKs. Las versiones
-reconocidas de esta adaptación (1.4.0 local y 1.0) pueden actualizarse con respaldo.
+Remove through Decky Settings → Plugins. Backup ZIPs can be installed natively. Old audio fields stay inert for recovery, never applied. Installer modifies no Gamescope wrapper and adds no boot services.
 
-Desinstalar: ajustes de Decky → Plugins → Video Output ALLY for DOCKs → desinstalar.
-Las copias ZIP pueden reinstalarse con el gestor nativo. Los campos antiguos de
-configuración de audio se conservan inertes para recuperación, nunca se aplican.
-El instalador no modifica el wrapper de Gamescope ni instala servicios de arranque.
+## Display selection/recovery
 
-## Selección y recuperación de vídeo
+`edid-mst-nudge-v1` verifies EDID/connector ID, serializes control and enrolls a temporary helper in `user.slice` before I/O. Gaming, freezer, sleep cycle and logind are checked; no AMD trigger_hotplug or physical dock HPD/reset. Gamescope and DRM must confirm the output; failure rolls back only still-recognized own changes. The internal display is never forced off. Physical DPCD/link faults are not guaranteed repaired.
 
-Arquitectura `edid-mst-nudge-v1`: identidad EDID y connector-ID verificados, controlador
-serializado y auxiliar temporal inscrito en `user.slice` antes de E/S. Comprueba
-sesión Gaming, freezer, ciclo de suspensión y logind; no usa AMD trigger_hotplug ni
-provoca reset físico/HPD del dock. Gamescope y DRM deben confirmar la salida; si falla,
-revierte solo sus cambios aún reconocidos. La pantalla interna nunca se fuerza a off.
-No garantiza solucionar errores físicos DPCD/enlace del dock.
+Existing preferences wait for 10 seconds of continuous Gaming and 2 seconds of stable topology, one attempt per topology. Two-second observation reads kernel metadata only. Manual choice wins for the cycle. Desktop/unload releases only own restrictions and notifies KWin without replacing its saved layout. Existing compatible integrations can use the startup helper; installation adds no wrapper/monitor preference.
 
-Para preferencias ya configuradas: espera 10 s de sesión Gaming continua y 2 s de
-topología estable; una tentativa por topología. La observación cada 2 s solo lee
-metadatos del kernel. La elección manual prevalece en el ciclo actual. Al volver a
-escritorio o descargar libera únicamente restricciones propias y notifica a KWin,
-sin sustituir su disposición guardada. El helper de arranque sirve a integraciones
-compatibles existentes; no se añade un wrapper ni preferencia de monitor al instalar.
+## Sources and checks
 
-## Código y comprobaciones
+[Sources](../components/video-output-ally): TypeScript, Python, tests and lockfile. BSD-3-Clause derivative of Output Manager with original copyrights/credits in LICENSE/NOTICE. Renaming does not remove provenance or imply ASUS, Valve or upstream endorsement.
 
-Fuentes en `components/video-output-ally/`, con TypeScript, Python, tests y lockfile.
-Derivado BSD-3-Clause de Output Manager; se conservan copyrights y atribución completa
-en LICENSE y NOTICE.md. El nombre nuevo no elimina la procedencia ni implica respaldo
-por ASUS, Valve o los autores originales.
-
-53 pruebas Python y 5 de interfaz, TypeScript/Rollup y probe nativo de scope sin escribir
-hardware comprobados en RC71L. El panel carga y reconoce AOC/Acer/ASUS ALLY. Las pruebas
-simuladas y la carga nativa **no acreditan** todavía selección física de monitores en
-Gaming, dock tardío/reconexión o compatibilidad con otros equipos. No se cambia la
-pantalla ni se suspende el sistema para probar el embalaje.
+Recorded: 53 Python + 5 frontend tests, TypeScript/Rollup, native no-write scope probe on RC71L; panel/backend load and AOC/Acer/ASUS ALLY labels. Simulations/loading **do not validate** physical Gaming monitor switching, late docks/reconnection or other hardware. Packaging tests do not change displays or suspend the computer.

@@ -1,46 +1,58 @@
-# Construcción y pruebas
+# Build and package
 
-## Fuente del proyecto
+[Español, including historical release-maintenance records](es/BUILD.md) · [Home](../README.md)
 
-El repositorio incluye fuentes de las siete piezas, recursos, pruebas, instaladores originales fijados y fuentes/licencias correspondientes de RyzenAdj. No se incluyen `node_modules`, credenciales, referencias de diagnóstico ni copias de tu equipo. Los binarios oficiales incorporados conservan sus avisos; no se descargan al instalar.
+## Project sources
 
-## Generar los ocho ZIP
+Sources for all seven components, assets, tests, pinned original payloads and RyzenAdj corresponding sources/licenses are included. No `node_modules`, credentials, diagnostic references or machine snapshots. Included third-party binaries keep their notices and are not downloaded during installation.
 
-Desde la raíz, con Python 3.10+ (SteamOS actual):
+## Build the eight ZIPs
 
-```bash
+Python 3.10+:
+
+```sh
 python3 build.py
 python3 -m unittest discover -s tests -v
 python3 verify_packages.py
-```
-
-La comprobación correcta de la lista relativa es:
-
-```bash
 (cd release && sha256sum -c SHA256SUMS)
 ```
 
-`release/` contiene centralizado, siete individuales y `SHA256SUMS`. Cada ZIP incluye un `.run` autoextraíble sin dependencias de la carpeta original. Fechas y orden de archivos del paquete son fijos para obtener bytes iguales a partir de las mismas fuentes y entradas. La integridad SHA256 comprueba corrupción, no identidad criptográfica del autor.
+`release/` contains the suite, seven individuals and `SHA256SUMS`. Each ZIP has a self-extracting `.run` independent of the original folder. Fixed file ordering/dates make identical sources/inputs produce identical bytes. SHA256 checks corruption, not cryptographic author identity.
 
-## Reconstruir aplicaciones
+## Rebuild application payloads explicitly
 
-El build central empaqueta los instaladores originales fijados en `payloads/`; editar `components/` por sí solo **no cambia esos binarios**. Para modificarlos:
+The central build packages pinned installers in `payloads/`; editing `components/` alone **does not change those executables**.
 
-- Escritorio: `cd components/ally-power; python3 build.py`; copiar su `.run` desde `dist/` a `payloads/` y actualizar versión/nombre en `engine.py` y `build.py` si cambia. Ver `REBUILD.md`.
-- ALLY RGB: en `components/ally-rgb`, ejecutar `npm ci`, `npm run typecheck`, `npm run build`, `python3 build.py`. Copiar `release/ALLY-RGB-1.2.zip` a `payloads/` y recalcular su entrada en `payloads/SHA256SUMS`. Es el ZIP nativo; el ZIP individual exterior se genera con el build de la suite.
-- Bluetooth: `cd components/bluetooth-trust-manager; python3 build.py`; copiar el `.run` de `dist/` a `payloads/`.
-- Decky: requiere Node/npm compatibles con las dependencias bloqueadas. En `components/ally-power-decky`, ejecutar `npm ci --ignore-scripts`, `npm run typecheck`, `npm run build`, `python3 build.py`. Copiar el ZIP de `release/` a `payloads/`. No hace falta Node en el equipo que instala.
-- Lanzadores: se empaquetan directamente desde `components/return-gaming`, `components/default-mode` e `installer/launchers.py`. No necesitan compilación.
+- Desktop: run `python3 build.py` in `components/ally-power`, copy the `.run` from `dist/` to `payloads/`, adjust name/version in suite catalog/build if changed. See its `REBUILD.md`.
+- RGB: in `components/ally-rgb`, run `npm ci`, `npm run typecheck`, `npm run build`, `python3 build.py`. Copy native `release/ALLY-RGB-1.2.zip` to `payloads/` and update its pinned hash. Suite build produces the outer individual installer.
+- Bluetooth: run its `build.py`, copy the `.run` from `dist/` to `payloads/`.
+- Power Decky: in its component, use lockfile-compatible Node/npm; `npm ci --ignore-scripts`, typecheck/build, then `python3 build.py`; copy the native ZIP to `payloads/`.
+- Launchers: packaged directly from their component sources and `installer/launchers.py`; no compilation.
 
-Después de sustituir binarios, revisa las entradas y renueva sus hashes con `(cd payloads && sha256sum *.run *.zip > SHA256SUMS)`. No regeneres hashes para ignorar una corrupción o un cambio no revisado.
+Review replaced payloads before updating their entries in `payloads/SHA256SUMS`; never regenerate hashes to conceal corruption. Rebuild the suite to refresh manifests, installers, ZIPs and checksums. Tests do not write TDP/SMT or switch real boot mode.
 
-Regenera finalmente `python3 build.py` para renovar manifests, `.run`, ZIP y checksums. Las pruebas no escriben TDP/SMT ni invocan el cambio real de arranque.
+## Collection 1.3 / video 1.0
 
-## Pruebas de componentes
+```sh
+(cd components/video-output-ally && npm ci --ignore-scripts && npm run typecheck && npm run build)
+(cd components/video-output-ally && python3 -m unittest discover -s tests -v && node --test tests/frontend.test.mjs)
+python3 components/video-output-ally/build.py
+# Review/copy its native release ZIP to payloads/ and update that pinned hash.
+python3 build.py --only central video-output-ally
+python3 -m unittest discover -s tests -v
+python3 verify_packages.py
+(cd release && sha256sum -c SHA256SUMS)
+```
 
-Ejecutar en cada directorio con `/usr/bin/python3`; las pruebas de las apps gráficas necesitan PyGObject/GTK4 disponibles:
+Selective build needs the six existing individual ZIPs in `release/`; download and verify those from v1.2 to preserve their exact bytes. A fresh checkout can run the full build instead, possibly changing wrappers/docs of unchanged applications. Central and video individual contain the same native `output-manager/` ZIP and source. No host EDID/settings/wrapper is distributed. npm licenses and original BSD-3-Clause provenance are retained.
 
-```bash
+Suite version is in `installer/version.py`; video version in its root package/lock/backend/catalog. Do not globally replace 1.2: POWER/RGB remain 1.2. The source extracted from an individual contains only its component; rebuild all packages from a full checkout or central source extraction.
+
+## Component tests
+
+Use system Python; graphical apps need GTK4/PyGObject:
+
+```sh
 (cd components/ally-power && PYTHONPATH=src:packaging:. python3 -m unittest discover -s tests -v)
 (cd components/ally-power-decky && python3 -m unittest discover -s tests -v)
 (cd components/ally-power-decky && node --test tests/test_live_queue.mjs tests/test_steam_tdp.mjs tests/test_session_frontend.mjs)
@@ -50,103 +62,15 @@ Ejecutar en cada directorio con `/usr/bin/python3`; las pruebas de las apps grá
 (cd components/bluetooth-trust-manager/payload && python3 -m unittest -v test_app)
 ```
 
-Las fuentes extraídas del centralizado incluyen `build.py` y todas las piezas. Las fuentes del individual solo contienen su componente: para reconstruir los ocho paquetes necesitas el checkout completo o extraer el centralizado.
+## Release publication
 
-## Publicación en GitHub
+`publish.py` needs authenticated official GitHub CLI and explicit visibility. Build/tests do not publish. On a reviewed, clean `main` checkout:
 
-`publish.py` requiere GitHub CLI oficial autenticada y una elección explícita de visibilidad. No se publica nada durante `build.py` ni durante las pruebas.
-
-```bash
+```sh
 gh auth login --hostname github.com --git-protocol https --web
-python3 publish.py --owner TU_USUARIO --visibility public
-# O --visibility private: nunca se asume público por defecto.
+python3 publish.py --owner YOUR_ACCOUNT --visibility public
 ```
 
-Debe ejecutarse sobre un checkout limpio, revisado y con commit en `main`. Comprueba los ocho paquetes, crea `SteamOS-ASUS-ROG-ALLY` si no existe, conserva un `origin` ajeno sin modificarlo, empuja sin force y crea `v1.3` con los ocho ZIP y `SHA256SUMS`. No imprime tokens, no modifica la configuración global de git y no reemplaza una release existente. Descarga de nuevo los nueve assets publicados y comprueba que sus hashes coincidan con los locales. Crear el repositorio exige permisos de GitHub adicionales a los de un conector que solo lee/escribe código en repositorios ya existentes.
+It verifies eight packages, creates the repo if absent, preserves unrelated remotes, pushes without force and creates v1.3 with eight ZIPs plus checksums. Published downloads are checked against local hashes. It does not replace existing releases. Repo creation requires additional GitHub permissions beyond existing-repo write access. Preserve v1.2/v1.0.0 tags/releases and unchanged individual assets.
 
-
-## Integración de vídeo: colección 1.3 / plugin 1.0
-
-Nuevo release v1.3 por añadir Video Output ALLY for DOCKs 1.0. Las aplicaciones
-previas conservan versiones y seis ZIP individuales. Para esta publicación:
-
-```bash
-(cd components/video-output-ally && npm ci --ignore-scripts && npm run typecheck && npm run build)
-(cd components/video-output-ally && python3 -m unittest discover -s tests -v && node --test tests/frontend.test.mjs)
-python3 components/video-output-ally/build.py
-# Copiar release/Video-Output-ALLY-for-DOCKs-1.0.zip del componente a payloads/.
-# Renovar únicamente su entrada fijada de payloads/SHA256SUMS tras revisar el ZIP.
-python3 build.py --only central video-output-ally
-python3 -m unittest discover -s tests -v
-python3 verify_packages.py
-(cd release && sha256sum -c SHA256SUMS)
-```
-
-Un checkout sin los seis individuales previos puede reconstruir los ocho con
-`python3 build.py`; para conservar exactamente los publicados en v1.2, descarga
-esos seis individuales primero y verifica sus hashes. El central 1.3 y el nuevo
-individual comparten ZIP nativo y fuentes. El nativo tiene carpeta `output-manager/`
-y manifest SHA256; no distribuye settings/EDID/wrapper del host. Las licencias npm
-están en `licenses/npm/`; se mantiene BSD-3-Clause y procedencia de Output Manager.
-
-Publicar main sin force y crear v1.3 apuntando al commit comprobado. No editar,
-retaggear ni reemplazar v1.2/v1.0.0. Nueve assets: ocho ZIP + SHA256SUMS. Verificar
-la descarga autenticada y el acceso público y conservar los seis individuales.
-La versión central está en installer/version.py; vídeo en package.json/lock raíz,
-main.py y catálogo. No sustituir cadenas 1.2 globalmente: POWER/RGB siguen en 1.2.
-
-## Referencia histórica: refrescos de RGB en v1.2
-
-Después de reconstruir el ZIP nativo RGB y renovar su hash fijado:
-
-```bash
-python3 build.py --only central ally-rgb
-python3 verify_packages.py
-(cd release && sha256sum -c SHA256SUMS)
-```
-
-Genera `SteamOS-ASUS-ROG-ALLY-1.2.zip` y `ALLY-RGB-1.2.zip`, y conserva los otros
-cinco individuales byte a byte. `--only` necesita esos cinco ZIP previos en `release/`;
-pueden descargarse de v1.0.0. Desde un checkout nuevo, `python3 build.py` reconstruye
-los siete a partir de las fuentes actuales (los cinco reconstruidos pueden cambiar
-su envoltorio/documentación, sin cambiar las aplicaciones fijadas).
-
-La versión del centralizado se define en `installer/version.py`, importada por build,
-interfaz y publicación; la versión RGB está en su package.json/backend y en el catálogo.
-El ZIP individual exterior RGB es un instalador `.run`: el ZIP nativo Decky está dentro
-del payload. El centralizado incluye exactamente ese mismo ZIP nativo, fuentes y licencias.
-
-## Referencia histórica: refresco de ALLY POWER en v1.2
-
-El plugin, catálogo, ZIP nativo y envoltorio individual POWER usan **1.2**.
-Reconstruir explícitamente `components/ally-power-decky` con sus dependencias
-bloqueadas, pruebas Python/JS, TypeScript y Rollup; copiar
-`release/Ally-Power-Decky-1.2.zip` a `payloads/` y renovar su hash. Eliminar del
-catálogo y de los payloads la entrada anterior 1.1.0, no conservar dos variantes
-como si fueran la misma aplicación.
-
-```bash
-python3 build.py --only central ally-power-decky
-python3 -m unittest discover -s tests -v
-python3 verify_packages.py
-(cd release && sha256sum -c SHA256SUMS)
-```
-
-Conserva los otros cinco individuales byte a byte, incluido RGB 1.2. Verifica
-todos los archivos del ZIP nativo contra sus fuentes y distingue su nombre,
-idéntico al exterior, por la estructura interna: el nativo contiene
-`ally-power-decky/`, el exterior contiene el `.run`.
-
-La release v1.2 ya existe. `publish.py` es solo para una release nueva y rechaza
-reemplazar una existente. Un refresco autorizado del mismo v1.2 debe respaldar
-metadata/assets y preservar tag, título, ID y los assets ajenos. Para POWER,
-tras validación real Gaming del usuario, se sustituye el centralizado, se publica
-`Ally-Power-Decky-1.2.zip` y se retira únicamente el antiguo individual 1.1.0 de
-este release; se renueva SHA256SUMS y su descripción con docs/RELEASE.md. El cambio
-de nombre POWER a 1.2 fue solicitado expresamente. Para refrescos solo RGB se
-conservan los nombres existentes y se construye `--only central ally-rgb`.
-
-Empujar main sin force ni retag. No crear release, discusión ni anuncio nuevos.
-Descargar los ocho assets y verificar hashes, metadata y los cinco assets ajenos;
-v1.0.0 debe permanecer íntegra. No incluye paquetes 1.3.x ni exige reinstalar o
-alterar hardware del equipo constructor para comprobar el embalaje.
+The [Spanish historical guide](es/BUILD.md) retains the full RGB/POWER v1.2 selective-refresh records. Those describe already-authorized historical maintenance, not permission to replace releases or skip real hardware validation. Documentation-only commits do not require repackaging existing assets.

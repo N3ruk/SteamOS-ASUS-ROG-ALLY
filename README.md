@@ -1,75 +1,68 @@
 # SteamOS ASUS ROG ALLY 1.3
 
-Instalador **centralizado y opcional**, con siete componentes independientes, documentación y paquetes individuales. No instala OpenClaw ni depende de él.
+**English** | [Español](README_ES.md)
 
-## Descargar e instalar
+An **optional centralized installer** with seven independent components, documentation and individual packages. It does not install or depend on OpenClaw.
 
-En la [release 1.3](https://github.com/N3ruk/SteamOS-ASUS-ROG-ALLY/releases/tag/v1.3) hay **ocho ZIP**: uno centralizado y uno por componente. Cada ZIP incluye un instalador `.run` autónomo con código fuente, licencias y documentación dentro.
+## Download and install
 
-1. En modo escritorio, extrae el ZIP.
-2. Si hace falta, marca el `.run` como ejecutable en **Propiedades → Permisos**.
-3. Ejecuta el `.run` **con tu usuario normal, sin sudo**.
-4. Lee las explicaciones, marca únicamente los componentes que quieras y pulsa **Instalar seleccionados**. Todo empieza desmarcado.
+[Release 1.3](https://github.com/N3ruk/SteamOS-ASUS-ROG-ALLY/releases/tag/v1.3) provides **eight ZIPs**: the central suite and one per component. Each contains a self-contained `.run` installer with source, licenses and documentation.
 
-El centralizado no cambia el arranque, TDP, SMT ni dispositivos Bluetooth durante la instalación. Los instaladores propios de Ally Power y Bluetooth conservan sus confirmaciones; Ally Power pide autorización del sistema.
+1. Extract the ZIP in Desktop Mode.
+2. If necessary, allow the `.run` to execute under Properties → Permissions.
+3. Run it **as your normal user, without sudo**.
+4. Read the descriptions, select only the components you want and click **Instalar seleccionados**. All choices start unchecked.
 
-La colección pasa a **1.3** por incorporar **Video Output ALLY for DOCKs 1.0**.
-Los demás componentes conservan sus versiones y paquetes.
+The central installer does not change boot mode, TDP, SMT or Bluetooth devices during installation. Ally Power and Bluetooth retain their own dialogs; Ally Power requests system authorization.
 
-## Componentes
+Collection **1.3** adds **Video Output ALLY for DOCKs 1.0**. Other components keep their existing versions/packages.
 
-| Componente | Para qué sirve | Administrador | Compatibilidad |
-|---|---|---|---|
-| [Volver al modo Gaming](docs/return-gaming.md) | Nuevo icono y confirmación antes de cerrar escritorio | No | SteamOS KDE con `steamosctl` |
-| [Alternar arranque](docs/default-mode.md) | Escritorio/Gaming como modo predeterminado del próximo arranque | No | SteamOS con `steamosctl` |
-| [Ally Power Escritorio](docs/ally-power.md) | TDP, SMT, núcleos e hilos | Sí, instalación y helper | Ally/Ally X Z1/Z1 Extreme |
-| [Ally Power Decky](docs/ally-power-decky.md) | Los mismos dominios de hardware desde Gaming, en tiempo real | API de Decky existente | Ally compatible y Decky instalado **y activo** |
-| [ALLY RGB](docs/ally-rgb.md) | Iluminación: cuatro efectos, colores y velocidades independientes; recuperar al despertar/encender | API de Decky existente | Ally RC71L, kernel RGB compatible y Decky instalado **y activo** |
-| [Video Output ALLY for DOCKs](docs/video-output-ally.md) | Elegir pantalla en Gaming, nombres de monitor e interna ASUS ALLY; solo vídeo | API de Decky existente | Ally RC71L, Gamescope/AMDGPU y Decky instalado **y activo** |
-| [Confianza Bluetooth](docs/bluetooth-trust-manager.md) | Retirar confianza sin borrar emparejamientos; útil con mandos PS3 | No | SteamOS KDE con BlueZ y GTK4 |
+## Components
 
-**Los controles de potencia no son universales**: se limitan a RC71L/RC72LA, AMD Ryzen Z1/Z1 Extreme y SteamOS x86_64. ALLY RGB requiere RC71L y la interfaz LED de cuatro zonas; Ally X no está validada. Los lanzadores y Bluetooth no requieren un modelo Ally. No se promete compatibilidad con cualquier versión antigua o futura de SteamOS.
+| Component | Purpose | Administrator access | Compatibility |
+| --- | --- | --- | --- |
+| [Return to Gaming Mode](docs/return-gaming.md) | Custom icon and confirmation before leaving Desktop Mode | No | SteamOS KDE with `steamosctl` |
+| [Toggle default boot mode](docs/default-mode.md) | Choose Desktop/Gaming for the next boot | No | SteamOS with `steamosctl` |
+| [Ally Power Desktop](docs/ally-power.md) | TDP, SMT, cores and threads | Installation/helper | Ally/Ally X Z1/Z1 Extreme |
+| [Ally Power Decky](docs/ally-power-decky.md) | The same hardware domains in Gaming, with live controls | Existing Decky API | Compatible Ally; Decky installed **and active** |
+| [ALLY RGB](docs/ally-rgb.md) | Four independent lighting effects, colors/speeds and optional resume/start recovery | Existing Decky API | Ally RC71L, supported RGB kernel interface, active Decky |
+| [Video Output ALLY for DOCKs](docs/video-output-ally.md) | Gaming display selection, monitor names and internal ASUS ALLY display; video only | Existing Decky API | Ally RC71L, Gamescope/AMDGPU, active Decky |
+| [Bluetooth Trust Manager](docs/bluetooth-trust-manager.md) | Remove trust without deleting pairings; useful for PS3 controllers | No | SteamOS KDE with BlueZ and GTK4 |
 
-## Decisiones de diseño
+**Power controls are not universal**: limited to RC71L/RC72LA, AMD Ryzen Z1/Z1 Extreme and x86_64 SteamOS. ALLY RGB requires RC71L and the four-zone LED interface; Ally X is not validated. Launchers/Bluetooth do not require an Ally model. Compatibility with every past/future SteamOS version is not promised.
 
-- Ningún componente seleccionado inicialmente; sin instalaciones ni descargas ocultas.
-- Decky solo se ofrece si el servicio de Loader está instalado y activo y sus requisitos se cumplen. No se instala ni activa Decky por detrás.
-- Los originales de los lanzadores, incluidos enlaces simbólicos, se guardan antes de sustituirlos. No se escribe en `/usr/share/applications`.
-- Escritorio y Decky comparten exclusión de hardware; no se detienen otros gestores. Detección de procesos y bloqueo no garantizan detectar firmware ni gestores desconocidos.
-- En Decky, **«TDP de Steam desactivado»** aparece primero tras «Ajuste manual»: habilita únicamente TDP del plugin. SMT/CPU no dependen de ese interruptor. Cambios en tiempo real, sin botones Aplicar, Liberar ni Restaurar.
-- Ally Power prepara la CPU que aún controla antes de suspender. Su recuperación optativa espera 10 segundos de Gaming estable y reaplica una vez TDP y después CPU/SMT; no aplica perfiles al arrancar.
-- ALLY RGB controla solo iluminación; elegir otra zona no detiene sus efectos. Puede recuperar ajustes RGB guardados al cargar si el usuario activó esa opción.
-- Video Output ALLY for DOCKs conserva el motor de selección/reversión verificada y elimina controles de audio. Se instala desde escritorio y no se sustituye mientras controla pantallas.
-- Se verifica SHA256 antes de invocar cada paquete. Esto detecta daños; no es una firma de autor.
-- No se recopila telemetría ni se envían dispositivos/configuraciones a internet. La integración Decky utiliza solo `127.0.0.1:1337`, con token en memoria.
+## Design choices
 
-## Comprobar sin instalar
+- Nothing selected initially; no hidden installations/downloads.
+- Decky components are offered only when Loader is installed/active and requirements are met. Loader is never installed or enabled silently.
+- Original launchers, including symlinks, are backed up before replacement. No writes to `/usr/share/applications`.
+- Desktop and Decky share hardware exclusion; other managers are not stopped. Process/lock checks cannot guarantee detection of firmware or unknown managers.
+- Decky's **TDP de Steam desactivado** switch is first under Manual adjustment and enables only plugin TDP. SMT/CPU are independent. Live changes, without Apply/Release/Restore buttons.
+- Ally Power prepares the CPU it still owns before sleep. Optional recovery waits for 10 seconds of stable Gaming, then reapplies TDP followed by CPU/SMT once; no startup profiles.
+- ALLY RGB handles lighting only; selecting another zone does not stop its effects. Saved lighting can recover at load when explicitly enabled.
+- Video Output retains verified display selection/rollback, removes audio controls, installs from Desktop and is not replaced while controlling displays.
+- SHA256 is checked before invoking each payload. This detects corruption, not author identity.
+- No telemetry or uploading device/configuration data. Decky integration uses `127.0.0.1:1337` only, with a token held in memory.
 
-```bash
+## Check without installing
+
+```sh
 bash SteamOS-ASUS-ROG-ALLY-1.3-SteamOS.run --check
 bash SteamOS-ASUS-ROG-ALLY-1.3-SteamOS.run --verify
-bash SteamOS-ASUS-ROG-ALLY-1.3-SteamOS.run --extract fuentes
+bash SteamOS-ASUS-ROG-ALLY-1.3-SteamOS.run --extract sources
 ```
 
-`--check` enumera disponibles/no disponibles, no inicia apps ni toca hardware. Devuelve 0 si al menos un componente es elegible, 1 si ninguno lo es o hay un error de integridad. `--verify` solo comprueba integridad.
+`--check` lists eligible/unavailable components without starting applications or touching hardware. Exit 0 means at least one eligible component; 1 means none or an integrity error. `--verify` checks integrity only.
 
-## Documentación y código
+## Documentation and source
 
-- [Instalación, actualización y recuperación](docs/INSTALLATION.md)
-- [Compilar y generar los ocho paquetes](docs/BUILD.md)
-- [Pruebas y límites de verificación](docs/VERIFICATION.md)
-- [Notas de la release](docs/RELEASE.md)
-- [`installer/`](installer): selección, comprobaciones, transacciones y adaptador Decky.
-- [`components/`](components): fuentes originales de cada aplicación, instaladores y recursos.
+- [Installation, upgrades and recovery](docs/INSTALLATION.md) · [Español](docs/es/INSTALLATION.md)
+- [Build and package guide](docs/BUILD.md) · [Español](docs/es/BUILD.md)
+- [Verification and limits](docs/VERIFICATION.md) · [Español](docs/es/VERIFICATION.md)
+- [Release notes](docs/RELEASE.md) · [Español](docs/es/RELEASE.md)
+- [`installer/`](installer): selection, checks, transactions and Decky adapter.
+- [`components/`](components): application sources, installers and resources.
 
-Código propio bajo MIT; **no** se aplica esa licencia a todo el contenido indiscriminadamente. RyzenAdj y recursos de terceros conservan sus licencias; los iconos PNG aportados por el usuario no se relicencian como MIT. Véase [THIRD-PARTY.md](THIRD-PARTY.md).
+Original code is MIT-licensed, **not every bundled item**. RyzenAdj and third-party assets keep their licenses; owner-supplied PNG icons are not relicensed as MIT. See [THIRD-PARTY.md](THIRD-PARTY.md).
 
-El centralizado se distribuye como **1.3** por integrar el nuevo plugin de vídeo
-**Video Output ALLY for DOCKs 1.0**. POWER y RGB permanecen en **1.2**, con sus
-recuperaciones ya documentadas y sin cambios de código o paquetes. El nuevo individual
-y el centralizado incorporan el mismo ZIP nativo de vídeo. Los seis individuales
-previos conservan sus bytes. Los releases **v1.2 y v1.0.0** siguen disponibles intactos.
-
-Video Output ALLY for DOCKs es un derivado BSD-3-Clause con licencia y créditos
-originales; véase [THIRD-PARTY.md](THIRD-PARTY.md). La carga y las pruebas automatizadas
-no equivalen a validación física de todos los monitores/docks en Gaming.
+POWER/RGB remain **1.2** with their documented recovery features. The new individual package and central suite contain the same native video ZIP; the six previous individual packages retain their bytes. Releases **v1.2 and v1.0.0** remain intact. Video Output ALLY for DOCKs is a BSD-3-Clause derivative with original credits. Loading/automated checks are not physical validation of every monitor/dock in Gaming.

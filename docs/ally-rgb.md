@@ -1,134 +1,60 @@
 # ALLY RGB — Decky 1.2
 
-Control exclusivo de iluminación para **ASUS ROG Ally RC71L con SteamOS x86_64**.
-No modifica TDP, SMT, núcleos/hilos, carga, ventiladores, EC ni MCU. Ally X no está validada.
+[Español](es/ally-rgb.md)
 
-## Funciones y uso
+Lighting only for **ASUS ROG Ally RC71L with x86_64 SteamOS**. No TDP, SMT, core/thread, charging, fan, EC or MCU changes. Ally X is not validated.
 
-- Cuatro zonas RGB, todas, parejas **1 y 2**, **3 y 4**, **2 y 3**, **1 y 4**, o una a una.
-- **Efecto, velocidad, color y transición propios de cada zona**, funcionando simultáneamente.
-- Color fijo, respiración, arcoíris, onda, transición y batería interna de la Ally.
-- Color manual mediante canales rojo/verde/azul; transición con **Color inicial** y **Color final**.
-- Porcentajes visibles 0–100 % de cada canal, incluidos ambos colores de Transición, sin perder los 256 niveles RGB.
-- Velocidad indicada de 0 % (mínimo del efecto) a 100 % (máximo), sin cambiar valores guardados ni ritmos anteriores.
-- Brillo y encendido/apagado generales. El kernel expone un único brillo para los cuatro LED.
-- **Recuperar al despertar/encender** guarda automáticamente la configuración completa de las cuatro zonas.
+## Features and use
 
-Seleccionar una zona solo cambia lo que editas: no congela ni reinicia las demás.
-Puedes combinar respiración azul en una zona, transición en otra y colores fijos en las restantes.
-Un grupo con efectos diferentes muestra **Varios efectos (conservar)** hasta que elijas un efecto
-para ese grupo. Los cambios se aplican en tiempo real, sin botón Aplicar.
+- Four RGB zones: all, pairs **1–2**, **3–4**, **2–3**, **1–4**, or individually.
+- Independent per-zone effects, speed, colors and transitions run simultaneously.
+- Static, breathing, rainbow, wave, transition and internal-battery effects.
+- Manual red/green/blue channels; transition start/end colors.
+- 0–100% channel displays, including both transition colors, retaining all 256 RGB levels.
+- Speed 0% (effect minimum) to 100% (maximum), without changing saved timing/values.
+- Global brightness/power; the kernel exposes one brightness for all four LEDs.
+- Optional **Recuperar al despertar/encender** automatically saves/restores all four zones.
 
-Las zonas se numeran 1–4; no se promete un mapa físico izquierda/derecha no confirmado.
-No incluye colores rápidos, perfiles, botones de control adicionales ni sincronización con audio/pantalla.
+Selecting a zone changes the editor only, not other animations or their phases. Mixed groups show **Varios efectos (conservar)** until explicitly edited. Changes are live; no Apply button. Zones are numbered 1–4 without an unverified physical left/right map. No quick colors/profiles/extra controls/audio-screen sync.
 
-El porcentaje y el efecto **Batería** leen la batería interna (`BAT0`), no la de los
-mandos u otros periféricos. Se admiten baterías internas sin atributo `scope`, pero se
-excluye `scope=Device`. Si no hay lectura interna válida aparece «batería sin datos»;
-el efecto Batería no se aplica con un porcentaje inventado.
+Battery percentage/effect use the internal BAT0, never controllers/peripherals. Internal batteries without `scope` are accepted; `scope=Device` is excluded. Missing data is shown explicitly and no fabricated percentage is applied.
 
-## Instalar
+## Install
 
-Selecciona **ALLY RGB — Decky** en el centralizado o descarga **ALLY-RGB-1.2.zip**,
-extrae y ejecuta **ALLY-RGB-1.2-SteamOS.run** desde escritorio, sin sudo.
-Nada está seleccionado por defecto. Solo se ofrece si Decky está instalado y activo,
-existe `python3-aiohttp` y el kernel expone los cuatro colores empaquetados esperados.
-El instalador no instala Decky, Python ni controladores adicionales.
+Choose RGB in the suite or download `ALLY-RGB-1.2.zip`, extract and run `ALLY-RGB-1.2-SteamOS.run` from Desktop without sudo. Nothing selected initially. Requires active Decky, system `python3-aiohttp` and the expected four packed kernel colors. No Loader, Python or driver installation.
 
-El individual es un instalador autónomo, no el ZIP nativo que espera directamente Decky.
-Para obtener el ZIP nativo y las fuentes sin instalar:
+The outer ZIP is not Decky's native ZIP. To extract without installing:
 
-```bash
-bash ALLY-RGB-1.2-SteamOS.run --extract fuentes
+```sh
+bash ALLY-RGB-1.2-SteamOS.run --extract sources
 ```
 
-El archivo **fuentes/payloads/ALLY-RGB-1.2.zip** sí es el ZIP nativo de Decky,
-con carpeta superior `ally-rgb/`. Usa Instalar plugin desde ZIP de Decky si prefieres la vía manual.
+`sources/payloads/ALLY-RGB-1.2.zip` is the native Decky ZIP with top folder `ally-rgb/`. Native Decky ZIP installation is an alternative. The suite checks SHA256, identity/version/manifest, exact request, installed files and backend response. Reconnection does not repeat confirmation. No Steam/other-plugin restarts. Reopen a stale panel, or use native Decky management and restart Steam manually when convenient.
 
-La suite verifica SHA256, identidad, versión y manifiesto del ZIP antes de solicitar la
-instalación local de Decky. Solo confirma la solicitud exacta y comprueba archivos instalados,
-versión registrada y respuesta del backend. Una reconexión no reenvía la confirmación.
-No reinicia Steam ni otros plugins. Si el panel conserva la lista anterior, vuelve a abrirlo;
-si tu versión de Decky no la actualiza, usa su gestión nativa y reinicia Steam manualmente cuando te convenga.
+## Recovery and coexistence
 
-## Recuperación y convivencia
+Opening/status queries do not change lighting. Fresh installs apply no colors at load. Previously saved settings with recovery enabled restore at Decky load even without opening the panel, retaining off/brightness/all four effects/colors/speeds. Turning recovery off prevents automatic restore but keeps saved settings.
 
-Abrir el panel y consultar estado no cambia las luces. En una instalación sin ajustes
-anteriores no se aplican colores al cargar. Si ya tenías una configuración guardada con
-**Recuperar al despertar/encender** activado, el plugin la restaura al cargar Decky,
-incluso sin abrir su panel. Conserva estado apagado, brillo y los cuatro efectos/colores/velocidades.
-Desactivar la opción impide la restauración automática, pero no borra los ajustes.
-La recuperación se decide en el backend desde pulsos ligeros de Steam, también
-con QAM cerrado. Detecta un ciclo de suspensión por BOOTTIME−MONOTONIC y espera
-10 s de pulsos continuos; una interrupción >4 s reinicia la cuenta. Sin continuidad
-en 60 s se omite el ciclo. No depende de hooks internos de suspensión ni hora civil.
-Restaura el perfil vigente **una sola vez y directamente, sin apagado/encendido
-forzado**. Un perfil apagado o con brillo cero no se enciende. La edición manual,
-un nuevo ciclo o la descarga invalidan lo pendiente; los comandos no se reintentan.
+Backend recovery uses light Steam pulses, even with QAM closed. BOOTTIME−MONOTONIC detects sleep; 10 seconds of continuous pulses are required, gaps >4 seconds restart the countdown, and no continuity within 60 seconds skips the cycle. No internal sleep hooks or wall clock dependence. Current profile restores **once, directly, without a forced off/on flash**. Off/zero brightness stays off. Manual edits, a new cycle or unload invalidate pending work; commands are not retried.
 
-Toda E/S RGB se realiza en un auxiliar que se inscribe en un scope transitorio
-`ally-rgb-io-*.scope` dentro de `user.slice` ANTES de recibir comandos. Ambos procesos
-verifican el cgroup y el ciclo de sueño, también antes de cada informe, rechazando
-comandos antiguos. La espera de la inscripción es acotada: la respuesta de systemd
-es un trabajo asíncrono y se comprueba el traslado efectivo del PID.
+All RGB I/O runs in a helper enrolled in transient `ally-rgb-io-*.scope` under `user.slice` **before commands**. Both processes verify cgroup/sleep cycle before each report and reject stale commands. Enrollment is bounded and checks actual PID movement after asynchronous systemd completion.
 
-No hay observador logind ni monitor de reloj permanente; logind solo se consulta
-al aplicar. No se instalan servicios persistentes, hooks de sueño o inhibidores,
-ni se modifica el freezer. Los auxiliares de RGB quedan junto a la sesión que
-SteamOS congela al suspender. El timeout no mata un auxiliar congelado ni permite
-sustituir uno no terminable, que conserva su bloqueo. Ningún timeout puede resolver
-por sí solo una operación no interrumpible del kernel.
+No permanent logind/clock watcher, persistent services, sleep hooks, inhibitors or freezer changes. Helpers stay with the SteamOS-frozen user session. Timeouts do not kill frozen helpers or allow replacement of an unterminable helper holding its lock; they cannot solve uninterruptible kernel I/O.
 
-Consultar estado usa caché y no lee ni escribe el RGB. Un perfil fijo se aplica
-y libera trabajador/flock, sin sondeo de LED residente. Las animaciones reutilizan
-un único auxiliar durante su actividad. El estado mostrado es la última aplicación
-conocida: un cambio externo en reposo puede no reflejarse hasta otra operación.
+Status is cached and neither reads nor writes RGB. Static profiles release worker/flock; animations share one helper. The displayed state is the last known application, so idle external changes may remain unnoticed. The RGB-process-only [Decky #975](https://github.com/SteamDeckHomebrew/decky-loader/issues/975) EOF adaptation does not modify Loader/other plugins or replace native EOF handling.
 
-Incluye una adaptación de cierre para [Decky #975](https://github.com/SteamDeckHomebrew/decky-loader/issues/975),
-limitada al proceso RGB: evita el bucle IPC en EOF sin modificar el Loader ni otros plugins.
-No sustituye una implementación que ya contenga comprobación EOF nativa.
+Do not run another RGB writer. Known HueSync/HHD/Ally Center/asusd/OpenRGB processes cause refusal, not automatic stop/uninstall. Unknown writers/firmware cannot be guaranteed detected. Ally Power is independent; no shared power lock/settings. Closing QAM leaves animations running; backend unload stops its worker without restoring over another manager. Device loss/external state changes yield without reimposition loops or idle RGB polling.
 
-No uses otro escritor RGB a la vez. ALLY RGB detecta HueSync, HHD, Ally Center, asusd
-u OpenRGB y rechaza competir; no los detiene ni desinstala automáticamente. Detección por procesos
-no garantiza conocer firmware u otros escritores. Ally Power puede controlar potencia de forma
-independiente: ALLY RGB no usa su bloqueo ni cambia su configuración.
+## Upgrade/remove
 
-Cerrar el panel deja las animaciones funcionando. Descargar/desinstalar el backend detiene
-su trabajador sin restaurar colores encima de otro gestor. Al escribir, una modificación externa o desaparición
-del dispositivo provoca cesión, sin bucle de reimposición ni sondeo RGB en reposo.
+Suite replacement is refused while RGB controls lights or is paused with pending recovery. Leaving Gaming alone may not stop automatic recovery; disable through Decky and use its native installer rather than expecting the suite to stop it. Recognized inactive installations get a backup at `$XDG_STATE_HOME/steamos-ally-suite/ally-rgb/`, default `~/.local/state`. `DECKY_PLUGIN_DIR` can name a nonstandard plugin parent. Decky settings are retained. Remove through Decky Plugins; no privileged uninstaller is added.
 
-## Actualizar o quitar
+## Kernel interface and verification
 
-La suite rechaza sustituir ALLY RGB si controla luces o está pausado con recuperación pendiente.
-No basta con salir de Gaming: la recuperación automática puede mantener activo el backend.
-En ese caso desactívalo desde Decky y utiliza su instalador nativo para actualizar, sin que la suite
-lo detenga por ti. Para una instalación reconocida e inactiva se crea antes una copia ZIP en
-`$XDG_STATE_HOME/steamos-ally-suite/ally-rgb/` (por defecto `~/.local/state`).
-Si Decky utiliza otra carpeta de plugins, `DECKY_PLUGIN_DIR` indica su carpeta padre.
-Los ajustes permanecen en el directorio de configuración que proporciona Decky; la suite no los borra.
-Para desinstalar usa Decky → Plugins → ALLY RGB → Desinstalar. No añade desinstalador privilegiado.
+Requires `/sys/class/leds/ally:rgb:joystick_rings`, four `rgb` entries in `multi_index`, `max_brightness=255`. Supported kernels use packed RRGGBB `multi_intensity` and brightness. If packed values are clipped to 255, an RGB-only hidraw fallback checks ASUS USB 0b05:1abe interface 02, descriptor and device identity. No kernel/firmware/button/power changes. Installer discovery sends no commands. Python stdlib plus occasional SteamOS `busctl` metadata calls; no pyserial/termios/external HID package installation.
 
-## Interfaz del kernel y fuentes
+HID success means transport acceptance, not physical color readback. Last sent frame, sysfs/device changes and known managers are tracked, not every unknown HID writer. No driver reinstall.
 
-Requiere `/sys/class/leds/ally:rgb:joystick_rings`, cuatro entradas `rgb` en `multi_index`
-y `max_brightness=255`. En kernels compatibles escribe `multi_intensity` (cuatro valores
-RRGGBB) y `brightness`. Cuando el kernel recorta esos valores a 255 utiliza un fallback
-hidraw limitado a color y brillo RGB: USB ASUS 0b05:1abe, interfaz 02 del mismo dispositivo,
-descriptor e identidad comprobados. No modifica kernel, firmware, botones ni potencia.
-La comprobación del instalador descubre esa interfaz sin enviar órdenes. E/S con Python stdlib y consultas D-Bus puntuales mediante busctl de SteamOS;
-sin instalar paquetes, `termios`, pyserial ni bibliotecas HID externas.
+[Source/guide](../components/ally-rgb/README.md) · [plugin tests](../components/ally-rgb/VERIFICACION.md) · [suite verification](VERIFICATION.md) · [licenses](../components/ally-rgb/THIRD-PARTY.md).
 
-En HID el estado informa aceptación del transporte, no lectura física del color; conserva
-el último frame enviado y detecta cambios del estado sysfs/dispositivo, además de gestores
-conocidos. No garantiza detectar escritores HID desconocidos. No reinstala controladores.
-
-- [Código y guía del plugin](../components/ally-rgb/README.md).
-- [Pruebas del plugin](../components/ally-rgb/VERIFICACION.md).
-- [Verificación y límites de la suite](VERIFICATION.md).
-- [Licencias y referencias](../components/ally-rgb/THIRD-PARTY.md).
-
-142 pruebas automatizadas (124 Python y 18 JavaScript), compilación TypeScript/Rollup y carga
-real del backend/frontend comprobadas. El usuario validó tres suspensiones/reanudaciones
-en Gaming con un emulador abierto y recuperación activa, y las nuevas parejas/porcentajes.
-No equivale a lectura física de colores, prueba de causa raíz de kernel ni compatibilidad
-universal con otras Ally o versiones de SteamOS.
+Recorded: 142 automated tests (124 Python + 18 JavaScript), TypeScript/Rollup and real backend/frontend load. User confirmed three Gaming suspend/resume cycles with an emulator open/recovery enabled, plus new pairs/percentages. Not physical color readback, proof of a kernel root cause or universal Ally/SteamOS validation.

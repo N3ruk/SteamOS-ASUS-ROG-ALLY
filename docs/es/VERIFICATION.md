@@ -1,0 +1,125 @@
+# Verificación y límites
+
+[English](../VERIFICATION.md)
+
+## Suite 1.3
+
+- 64 pruebas de selección, catálogo, integridad, instaladores y adaptadores Decky,
+  incluida actualización POWER 1.2 y rechazo de recuperación pendiente.
+- ALLY POWER Decky: 115 pruebas Python y 16 JavaScript; TypeScript/Rollup correctos.
+- ALLY RGB: 124 pruebas Python y 18 JavaScript; TypeScript estricto y Rollup correctos.
+
+Los números se refieren a casos de prueba, no a equipos físicos. Las comprobaciones
+anteriores de POWER/RGB se conservan; la integración de vídeo no cambia sus fuentes ni paquetes.
+
+La interfaz gráfica se prueba con todas las casillas desmarcadas. No ofrece Ally Power
+Decky, ALLY RGB ni Video Output ALLY for DOCKs cuando Decky está inactivo o faltan los requisitos de cada componente.
+
+Se usan hogares temporales, servicios y dispositivos simulados: instalación sin cambiar
+sesión/arranque/hardware, rutas con espacios, archivos y enlaces originales, reinstalación,
+desinstalación, rechazo de modificaciones manuales/directorios enlazados, rollback y exclusión.
+También manifiestos corruptos/traversal, Decky instalado/activo, solicitud exacta, hashes y
+rechazo de confirmaciones de otro plugin. ALLY RGB no se sustituye si controla luces o está
+pausado; la copia de versiones conocidas se comprueba sin modificar ajustes.
+
+El adaptador RGB distingue archivos antiguos con la misma versión, verifica el manifiesto
+nativo y no reenvía una confirmación si el frontend reconecta. Los errores de transporte
+no muestran el token de la conexión. Nada descarga dependencias ni habilita servicios.
+
+## Paquetes
+
+Los ocho ZIP se extraen en temporal y se verifican `.run`, SHA256, manifiesto, catálogo,
+fuentes, licencias y `--check --json`, sin instalar. Se contrastan los payloads ejecutables
+con sus fuentes, incluyendo todos los archivos del ZIP nativo POWER 1.2 y el
+manifiesto ALLY RGB 1.2 y el nuevo manifiesto nativo de vídeo 1.0. Los seis individuales
+previos se conservan byte a byte al construir `--only central video-output-ally`.
+El centralizado contiene los siete componentes y cada individual solo su componente.
+
+Las fechas y orden de archivos son fijos. Un build selectivo repetido debe dar los mismos
+hashes de los ocho ZIP y SHA256SUMS. Esto comprueba integridad, no es una firma de autor.
+
+## ALLY RGB
+
+Efectos, velocidades y colores independientes; cambiar la selección no modifica el frame,
+no escribe luces y no reinicia fases de otras zonas. Cuatro efectos distintos se componen
+en un único trabajador. Grupo mixto conserva ajustes hasta una edición explícita; cambios
+pendientes no se pierden al cambiar de selector. Las cuatro configuraciones sobreviven a
+reinicio del gestor y suspensión/reanudación simulados. Recuperación desactivada o archivo
+corrupto no aplica colores; no se sobreescribe el archivo corrupto.
+
+Backend/frontend cargados y readback de animaciones existentes observados en una RC71L:
+las ondas continuaron al seleccionar otra zona. Esto no es una lectura física del color
+físico. La validación real posterior se describe a continuación. El empaquetado no reinstala el plugin activo.
+
+El lector de batería se prueba con mando conectado/desconectado, periférico detectado
+primero con porcentaje distinto, BAT0 sin scope, marcado Device, batería ausente y datos
+inválidos/inaccesibles. Tanto el porcentaje como el efecto usan la batería interna.
+Una lectura desconocida no toma la de otro dispositivo y se muestra sin datos.
+
+En kernels que recortan colores empaquetados, el fallback hidraw es exclusivamente
+RGB y conserva los cuatro efectos. Las pruebas comprueban identidad USB, interfaz,
+descriptor, nodo abierto, cierre ante desaparición, lista positiva de dos comandos,
+rechazo de paquetes ajenos, dimmer y ausencia de escrituras al consultar el estado.
+El instalador descubre ese dispositivo sin abrir ni escribir hidraw. El éxito de HID
+significa aceptación por transporte; no equivale a readback físico de los colores.
+
+La recuperación se prueba desde pulsos y relojes simulados: cuenta de 10 s,
+continuidad, huecos y límites, un solo envío directo sin apagado temporal,
+fallos sin reintentos, ediciones/cierre que prevalecen y nuevo ciclo de sueño.
+El estado del panel es caché y los colores fijos no dejan actividad RGB residente.
+
+Los auxiliares se prueban con scope verificado, inscripción asíncrona del PID antes
+de payload, rechazo de frames antiguos y por informe, timeout pausado durante
+congelación y flock heredado. Un auxiliar no terminable impide sustituirlo.
+El probe real en RC71L verificó user.slice sin tocar LED. El guard IPC conserva
+pruebas de EOF, cancelación, idempotencia y respeto de comprobaciones nativas.
+
+Recarga activa comprobada en 0,1 s sin SIGKILL y restauración directa tras los
+10 s. El usuario confirma tres suspensiones/reanudaciones correctas en Gaming
+con un emulador abierto y recuperación activa. También valida las parejas
+2–3/1–4 y los porcentajes RGB/transición/velocidad. No demuestra una causa concreta
+de kernel, un readback físico del color ni compatibilidad universal. El empaquetado
+no reinstala el plugin ni cambia la configuración del host.
+
+## Otras aplicaciones y límites
+
+ALLY POWER Decky 1.2 incorpora scope de E/S verificado, guardas de sesión/freezer,
+preparación CPU completa mediante logind delay antes de dormir y recuperación
+optativa TDP→CPU tras 10 s de pulsos continuos. Las pruebas simuladas cubren
+cancelaciones, plazos, propiedad del hardware, cambios nativos Steam y separación
+de dominios. Carga real de frontend/backend, persistencia del interruptor y probes
+de scope/inhibidor comprobados sin cambiar CPU/TDP para probar. El usuario confirmó
+después el funcionamiento en Gaming de la preparación y, por separado, de la
+recuperación automática. No indicó número de ciclos para esta última validación.
+Solo después de su confirmación se refrescan instaladores y release.
+
+Se conservan los seis paquetes individuales anteriores, incluido escritorio 1.0.0. Sus comprobaciones previas incluyeron 31 pruebas de escritorio. Las instantáneas
+de topología se generan en el destino, nunca se empaqueta la del equipo constructor.
+
+La app Bluetooth fue probada manualmente por el usuario. La instalación completa en
+un sistema nuevo y otras Ally/Ally X requiere validación física. ALLY RGB solo se ofrece
+en RC71L; Ally X no está validada. Ninguna prueba aislada acredita compatibilidad universal
+con todas las versiones de SteamOS, Decky o Steam. El TDP nativo usa una API interna.
+
+No se resuelven dependencias modificando el sistema. Si faltan, se explica y el componente
+no está disponible. Las pruebas de empaquetado no cambian TDP, SMT, Bluetooth, RGB ni arranque.
+
+## Video Output ALLY for DOCKs 1.0
+
+53 pruebas Python y 5 de interfaz: guardas y rollback con hardware simulado, identidad EDID, caché,
+nombres PNP/modelo, etiquetas, interna ASUS ALLY, settings atómicos sin perder campos,
+consultas sin procesos/audio/escrituras y UI con refresco secuencial/cancelable,
+busy y errores. Compilación TypeScript/Rollup y comparación de los tres módulos
+del motor con la versión local previa, sin cambios de algoritmo.
+
+El adaptador de distribución prueba hash/manifiesto completo, identidad/versión,
+rutas inseguras, backups, rechazo de Output Manager original/carpeta desconocida,
+Gaming/owned/busy/desactivado, solicitud exacto, confirmación una vez y reconexión
+solo lectura, archivos realmente instalados y bloqueo concurrente. No usa cambios
+de monitor para comprobar una instalación.
+
+Carga real de backend/frontend y probe de scope en RC71L, sin escrituras; labels
+AOC/Acer/ASUS ALLY observados en metadatos. Estos resultados no son una prueba física
+de vídeo Gaming, dock tardío/reconexión ni otros modelos. La publicación1.3 fue
+solicitada expresamente, sin atribuir al usuario una validación física no declarada.
+Los seis individuales previos y los releases v1.2/v1.0.0 se conservan intactos.

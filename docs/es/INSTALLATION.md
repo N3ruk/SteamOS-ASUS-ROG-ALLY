@@ -1,0 +1,68 @@
+# Instalación, actualización y recuperación
+
+[English](../INSTALLATION.md)
+
+## Instalación normal
+
+Descarga el centralizado o el individual. Extrae el ZIP, permite ejecución del `.run` y ejecútalo sin sudo desde escritorio. No necesitas clonar el repositorio ni instalar dependencias desde internet.
+
+La ventana GTK4 contiene explicaciones y casillas. Si GTK4 no está disponible se usa KDialog; desde terminal sin sesión gráfica existe selección textual. Las dependencias ausentes se muestran: no se usa `pip`, `pacman` ni se modifica SteamOS para resolverlas automáticamente.
+
+El instalador mantiene la ventana ocupada durante cada operación y deja un resultado por componente. Si uno falla, los demás seleccionados se siguen intentando: no hay una transacción global que desinstale aplicaciones correctamente instaladas. Cancela en el diálogo propio de una app si no quieres continuar con ella; ese instalador original puede finalizar con código 0 al cancelar y el resultado lo indica expresamente.
+
+## Archivos y permisos
+
+- Lanzadores: `$XDG_DATA_HOME/applications` y `$XDG_DATA_HOME/steamos-ally-suite/<componente>`; iconos en `icons/hicolor`. Por defecto `~/.local/share`.
+- Volver a Gaming añade/reemplaza también `Return.desktop` en el escritorio resuelto por `xdg-user-dir DESKTOP`.
+- Sus copias originales y recibos: `$XDG_STATE_HOME/steamos-ally-suite/<componente>/receipt.json`, por defecto `~/.local/state`. El recibo contiene datos originales y nuevos, no solo nombres.
+- Ally Power escritorio: `/usr/local/lib/desktop-power`, comandos `/usr/local/bin`, accesos de usuario. Su instalador original conserva backups y restaura el modo de solo lectura de SteamOS si lo desactiva temporalmente.
+- Bluetooth: `~/.local/share/bluetooth-trust-manager` y accesos de usuario; respeta `XDG_DATA_HOME`.
+- Decky: instalación delegada a Loader, en su carpeta de plugins. No se reinicia Steam, Bluetooth ni otros plugins.
+
+Los lanzadores se sustituyen atómicamente por archivo y se revierten ante excepciones del proceso. **No** es una transacción resistente a corte de corriente entre archivos. No se siguen directorios simbólicos; si una ruta padre es un enlace se rechaza la operación. El enlace final del lanzador sí se respalda y restaura correctamente.
+
+## Actualizar
+
+Vuelve a ejecutar el paquete deseado. Los lanzadores mantienen la copia original de la primera instalación; si cambiaste archivos gestionados manualmente, no se sobrescriben y se pide resolverlo antes. Si cambiaste las rutas XDG o de escritorio, desinstala antes con las rutas originales.
+
+Cierra Ally Power (incluida la bandeja) antes de actualizarlo; cierra Confianza Bluetooth antes de sustituirla. No se cierran por ti.
+
+Decky: sal de Gaming para que el plugin deje de controlar hardware. Se comprueba `get_state.active` y que no haya recuperación pendiente, y se guarda una copia ZIP antes de sustituir una versión reconocida (según el catálogo de versiones admitidas de cada adaptador, incluido POWER 1.2). Si no se localiza la carpeta o no se puede leer, no se actualiza. Para rutas no estándar, define `DECKY_PLUGIN_DIR` como carpeta padre de `ally-power-decky`, `ally-rgb` u `output-manager`. La integración automática se comprobó contra la API local de Decky **3.3.0**; si cambia, el adaptador falla con un mensaje, no fuerza un reinicio ni copia archivos como root. La conexión WebSocket puede reemplazar brevemente la conexión de su frontend, que vuelve a conectarse.
+
+## Desinstalar
+
+- **Lanzadores:** busca «Desinstalar Return to Gaming Mode» o «Desinstalar Alternar arranque de SteamOS» en el menú. Devuelve los archivos originales, o retira los añadidos si antes no existían. Guarda recibo recuperable `removed-*.json`. Si se detectan cambios manuales, no se toca nada. La carpeta vacía y `operation.lock` pueden quedarse; no son procesos.
+- **Ally Power:** usa su desinstalador del menú o el `.run` original incluido con `--uninstall`.
+- **Bluetooth:** desinstalador del menú o `.run` original con `--uninstall`.
+- **Decky:** ajustes de Decky → Plugins → Ally Power, ALLY RGB o Video Output ALLY for DOCKs → desinstalar. No añade un segundo gestor de desinstalación privilegiada.
+
+Desinstalar el lanzador de arranque **no cambia** el modo predeterminado ya elegido. Desinstalar el lanzador Gaming no cambia la sesión actual. Si una actualización del sistema sustituye iconos o ficheros gestionados, revísalos antes de restaurar; nunca se sobrescriben a ciegas.
+
+## Convivencia de gestores
+
+Puedes tener instaladas las variantes escritorio y Decky, pero no utilizarlas simultáneamente sobre el hardware. Cierra la app de escritorio antes de tomar control en Gaming. Los gestores detectables provocan rechazo; no son desinstalados, desactivados ni detenidos por la suite. La instalación no toma control de TDP ni SMT.
+
+## ALLY RGB
+
+[Guía completa de iluminación](ally-rgb.md). La opción se ofrece solo con RC71L e interfaz RGB
+compatibles, Decky activo y aiohttp. No instala ni activa Decky. No sustituye un backend
+que controle iluminación o esté pausado con recuperación pendiente; no basta con salir de Gaming.
+Las copias de instalaciones reconocidas e inactivas se guardan en
+`$XDG_STATE_HOME/steamos-ally-suite/ally-rgb/`. Si desactivaste el plugin, usa el instalador
+nativo de Decky para actualizarlo. Ajustes previos con recuperación activada pueden restaurarse
+al cargar después de confirmar preparación y esperar 10 segundos; en una instalación sin ajustes no se aplican luces. La suite no envía colores ni
+detiene otros gestores RGB.
+
+## Video Output ALLY for DOCKs
+
+[Guía del plugin de vídeo 1.0](video-output-ally.md), nuevo en la colección 1.3.
+Solo se ofrece con RC71L/requisitos de vídeo y Decky activo. Se instala desde escritorio;
+no sustituye un controlador en Gaming, ocupado o con restricciones propias pendientes.
+Respalda versiones reconocidas y conserva los ajustes. La carpeta interna sigue siendo
+`output-manager`; retira primero el Output Manager original desde Decky y espera a que
+termine antes de iniciar una instalación nueva. No sobrescribe carpetas desconocidas.
+
+El central y el individual contienen el mismo ZIP nativo. No instalan un wrapper de
+Gamescope, no imponen AOC ni otro monitor en una instalación limpia y no cambian audio.
+Las preferencias de vídeo ya guardadas se conservan y pueden seguir aplicándose en
+Gaming. No ejecutan cambios de salida para verificar la instalación.

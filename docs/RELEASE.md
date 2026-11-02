@@ -1,19 +1,21 @@
 # SteamOS ASUS ROG ALLY 1.3
 
-Esta versión incorpora **Video Output ALLY for DOCKs 1.0** a la colección de aplicaciones y plugins para ASUS ROG Ally.
+[Español](es/RELEASE.md)
 
-## Nuevo plugin de vídeo
+This release adds **Video Output ALLY for DOCKs 1.0** to the ASUS ROG Ally application/plugin collection.
 
-- Selección de la pantalla de Gaming desde QAM mediante una interfaz dedicada a vídeo.
-- Pantalla interna identificada como **ASUS ALLY** y monitores externos por su etiqueta o fabricante y modelo.
-- Identificación por EDID para reconocer el monitor aunque cambie su número de conector.
-- Recuperación de la preferencia de vídeo configurada tras iniciar o reanudar Gaming, con espera de estabilización y prioridad para la selección manual.
-- Verificación de la salida mediante Gamescope y DRM, con reversión de los cambios propios si la selección falla.
+## New video plugin
 
-## Integración en los instaladores
+- Gaming display selection from QAM in a video-only interface.
+- Internal display labeled **ASUS ALLY**; external displays use saved labels or manufacturer/model.
+- EDID identity recognizes a monitor even when its connector number changes.
+- Configured video preference recovery after Gaming start/resume, with stabilization delay and priority for manual selection.
+- Gamescope/DRM output verification and rollback of own changes if selection fails.
 
-- Nuevo instalador individual **Video-Output-ALLY-for-DOCKs-1.0.zip**.
-- Incorporación del plugin como opción del **instalador centralizado 1.3**.
-- Instalación mediante Decky con respaldo de la versión anterior y comprobación del paquete y del backend.
+## Installer integration
 
-[Funciones, requisitos e instalación del nuevo plugin](https://github.com/N3ruk/SteamOS-ASUS-ROG-ALLY/blob/main/docs/video-output-ally.md).
+- New individual `Video-Output-ALLY-for-DOCKs-1.0.zip`.
+- New optional component in the centralized **1.3** installer.
+- Decky installation with previous-version backup and package/backend checks.
+
+[Features, requirements and installation](video-output-ally.md).

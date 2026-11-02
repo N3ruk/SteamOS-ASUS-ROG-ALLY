@@ -1,51 +1,33 @@
 # Ally Power — Decky Gaming 1.2
 
-Control de TDP, SMT, núcleos e hilos desde el panel de Decky en modo Gaming. Requiere hardware compatible con Ally Power y **Decky Loader instalado y activo**. No instala Loader, no lo activa y no modifica Steam al instalar.
+[Español](es/ally-power-decky.md)
 
-## Interfaz y control
+TDP, SMT, core/thread controls in Decky's Gaming panel. Requires supported Ally hardware and **Decky installed and active**. Installation does not install/activate Loader or modify Steam.
 
-El primer control bajo **«Ajuste manual»** es **«TDP de Steam desactivado»**. Activarlo desactiva realmente el control TDP nativo mediante la interfaz interna de Steam y, tras verificarlo, habilita el TDP del plugin. Si no está activo se usa el control TDP nativo de Steam. Si la API de Steam cambia o no funciona, el TDP del plugin no se habilita.
+## Controls
 
-**SMT/CPU son independientes** de ese interruptor. Los cambios se serializan y aplican en tiempo real; no hay botones Aplicar, Liberar ni Restaurar. Si Steam reactiva el control nativo por un perfil, el plugin cede TDP en vez de combatirlo.
+First under **Ajuste manual**, **TDP de Steam desactivado** disables native Steam TDP through Steam's internal interface and enables plugin TDP only after verification. With it off, use native Steam TDP; API failure leaves plugin TDP disabled. **SMT/CPU are independent**. Changes are serialized/live without Apply/Release/Restore. If Steam reclaims native TDP through a profile, the plugin yields rather than competing.
 
-No modifica hardware al cargar o consultar estado. Solo toma el bloqueo compartido cuando se solicita una operación; detecta gestores conocidos y rechaza competir. Salir de Gaming normaliza antes la CPU que aún posee y cede sin sobrescribir a otro gestor. Los límites mostrados son configuración conocida, no una medición del consumo real.
+Loading/status queries do not modify hardware. Hardware exclusion is acquired only for requested operations, and known managers block competing writes. Leaving Gaming normalizes CPU still owned, then yields without overwriting another manager. Displayed limits are known configuration, not measured consumption.
 
-## Suspensión y recuperación
+## Sleep and optional recovery
 
-Antes de reducir CPU/SMT, adquiere una protección logind **delay**, no block. Antes de dormir activa SMT y todos los hilos de la CPU todavía poseída. La preparación no toca TDP, RGB ni controles HID; está acotada y libera siempre su inhibidor. El auxiliar D-Bus solo maneja metadatos: toda E/S CPU/RyzenAdj permanece en un scope temporal verificado de `user.slice`, con comprobaciones de sesión/freezer antes de operar. No hay servicios propios ni hooks persistentes.
+Before reducing CPU/SMT, a logind **delay** inhibitor is acquired, not block. Before sleep, SMT/all threads of the still-owned CPU are enabled; TDP, RGB and HID are untouched. Preparation is bounded and always releases the inhibitor. D-Bus helper handles metadata only; CPU/RyzenAdj I/O runs in a verified temporary `user.slice` scope with session/freezer guards. No own services or persistent hooks.
 
-**Recuperar ajustes al despertar** es optativo. Recuerda los ajustes propios solo en memoria y espera 10 segundos de pulsos continuos de Steam en Gaming antes de recuperar una vez **TDP→CPU/SMT**. CPU permanece completa durante la espera; se readquiere la protección antes de reducirla. TDP respeta el techo actual de batería/cargador y cede al control nativo si Steam lo retoma o cambia su perfil. Funciona con QAM cerrado.
+Optional wake recovery remembers owned settings in memory. After **10 seconds** of continuous Steam Gaming pulses, it restores **TDP → CPU/SMT** once, even with QAM closed. CPU stays complete while waiting and protection is reacquired before reduction. TDP respects current battery/charger limits and yields if Steam reclaims it/changes profiles.
 
-Huecos de pulsos >4 s reinician la cuenta y el intento caduca a los 60 s. Edición manual, otra suspensión, cambio de juego, salida de Gaming o control competidor cancelan. Si Steam no identifica todavía el juego, espera sin aplicar su configuración al menú. No se reintenta en bucle. Solo persiste el interruptor, no perfiles; al arrancar o recargar no aplica CPU/TDP. Con recuperación apagada mantiene CPU completa al despertar hasta una acción manual.
+Gaps >4 seconds restart the countdown; the attempt expires after 60 seconds. Manual edit, new suspend, game change, leaving Gaming or a competing manager cancels. Unknown game identity waits rather than applying game settings to the menu. No retry loop. Only the switch persists, not profiles; startup/reload applies no CPU/TDP. With recovery off, CPU stays complete after wake until manual action.
 
-## Instalar / actualizar / quitar
+## Install, update and remove
 
-Paquete individual: `Ally-Power-Decky-1.2.zip`. Contiene instalador `.run` y dentro el **ZIP nativo Decky 1.2**, fuentes y licencias. El ZIP exterior no se instala directamente en Decky: usa el que se encuentra en `payloads/` tras extraer el `.run` con `--extract fuentes`. La API local de Decky se verificó con Loader 3.3.0. Se requiere `python3-aiohttp` del sistema; no se instala automáticamente. La instalación oficial/manual desde ZIP en Decky sigue siendo una alternativa si cambia su API local.
+`Ally-Power-Decky-1.2.zip` contains a `.run` installer and, inside, the **native Decky ZIP 1.2**, sources/licenses. The outer ZIP is not installed directly into Decky. Extract with `--extract sources` and use the ZIP under `sources/payloads/` for manual installation. Local API checked with Loader 3.3.0; system `python3-aiohttp` required, not automatically installed. Native Decky ZIP installation remains an alternative.
 
-Se verifica hash del ZIP, autorización local en memoria, solicitud de instalación exacta, versión registrada y respuesta del backend. No se imprime el token ni se reinicia Steam. Antes de actualizar una versión existente se comprueba que no controle hardware ni tenga recuperación pendiente y se guarda un ZIP de la instalación; véase [recuperación](INSTALLATION.md).
+ZIP hash, in-memory local authorization, exact request, registered version and backend response are checked. No tokens printed or Steam restarts. Existing versions must be inactive without pending recovery; a backup ZIP is made first. See [recovery](INSTALLATION.md). Remove through Decky plugin settings; restore backup ZIPs only after releasing hardware control.
 
-Para desinstalar usa los ajustes de plugins de Decky. Para restaurar una copia anterior, instálala con el mecanismo ZIP de Decky después de dejar de controlar el hardware. El centralizado no añade botones de control a la interfaz del plugin.
+## Topology and verification
 
-## Fuentes y estado de pruebas
+Distribution, `.run`, native ZIP and catalog all use **1.2**. Includes status/manual controls, `gamescope-wl` detection and stable core/thread limits across SMT toggles.
 
-[`components/ally-power-decky`](../components/ally-power-decky), [README original](../components/ally-power-decky/README.md), [historial de verificación](../components/ally-power-decky/VERIFICACION.md). Código MIT propio y fuentes/licencias de RyzenAdj incluidas.
+Verified physical metadata only is kept at `/var/lib/ally-power-decky/cpu-topology.json`, not power profiles or startup settings. This supports restarting the backend with SMT off independently of Desktop; a valid Desktop snapshot is also usable. Incomplete/zero offline IDs are rejected, never assumed new cores. Without a complete identity/snapshot, enable all cores/SMT with your current manager first; the plugin does not enable CPUs to inspect them or distribute another machine's topology.
 
-TypeScript, compilación y pruebas simuladas verifican lógica y exclusión; no prueban interacción física en Gaming ni escrituras reales sobre otra Ally. Véase [verificación de la suite](VERIFICATION.md).
-
-115 pruebas Python y 16 JavaScript cubren sesión, preparación, recuperación, cancelaciones e independencia CPU/TDP. El usuario confirmó por separado el funcionamiento real de la preparación y de la recuperación automática en Gaming antes de este refresco. No se extrapola a otras Ally.
-
-
-## Topología y versión de distribución
-
-El archivo de distribución, su `.run`, el ZIP nativo y el catálogo usan **1.2**.
-Incluye el recuadro de estado y Ajuste manual, detección de `gamescope-wl` y
-validación estable de núcleos/hilos al alternar SMT.
-
-El plugin guarda solo metadatos físicos verificados en
-`/var/lib/ally-power-decky/cpu-topology.json`; no son ajustes de potencia y no se
-aplican al arrancar. Esto permite reiniciar el backend con SMT apagado sin depender
-de la app de escritorio. También puede usar una instantánea válida de escritorio.
-Se rechazan los IDs incompletos/puestos a cero de CPU offline, y nunca se asume que
-cada CPU apagada sea un núcleo nuevo. Si no hay ninguna identificación completa ni
-instantánea válida, se pide iniciar con todos los núcleos/SMT disponibles: no se
-activan CPU para inspeccionarlas ni se distribuye una topología de otro equipo.
+[Sources](../components/ally-power-decky) · [original guide](../components/ally-power-decky/README.md) · [historical verification](../components/ally-power-decky/VERIFICACION.md). Own MIT code plus RyzenAdj sources/licenses. Recorded checks: 115 Python and 16 JavaScript tests, TypeScript/build, preparation/recovery/cancellations and CPU/TDP independence. The user separately confirmed real preparation and automatic recovery in Gaming before the package refresh. This is not validation on other Ally machines. See [suite verification](VERIFICATION.md).

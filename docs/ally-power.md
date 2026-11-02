@@ -1,43 +1,29 @@
-# Ally Power — Escritorio 1.0.0
+# Ally Power — Desktop 1.0.0
 
-Control manual de **TDP, SMT, núcleos e hilos** con interfaz de escritorio y bandeja. No requiere PowerTools. El paquete original incluye RyzenAdj 0.19.0 y sus fuentes/licencias.
+[Español](es/ally-power.md)
 
-Compatibilidad comprobada por el instalador: SteamOS x86_64, ASUS ROG Ally RC71L o Ally X RC72LA y AMD Ryzen Z1/Z1 Extreme. La comprobación de modelo no equivale a prueba física en todas las variantes.
+Manual **TDP, SMT, core and thread** controls in a desktop/tray application, without PowerTools. The original package includes RyzenAdj 0.19.0 and corresponding sources/licenses.
 
-## Instalación
+The installer checks x86_64 SteamOS, ASUS ROG Ally RC71L / Ally X RC72LA and AMD Ryzen Z1/Z1 Extreme. Model checks are not physical validation of every variant.
 
-Individual: `Ally-Power-Escritorio-1.0.0.zip`, o selección en centralizado. Utiliza `Ally-Power-1.0.0-SteamOS-x86_64.run`, reconstruido desde las fuentes incluidas. Se pide autorización del sistema, no se almacena tu contraseña. Si está abierta, ciérrala incluida la bandeja. Instala app/helper en `/usr/local`, sin servicios de aplicación permanente. No aplica ajustes al instalar.
+## Installation and use
 
-El instalador propio comprueba sus dependencias; entre ellas Python/PyGObject GTK4, `pkexec`, `kdialog`, utilidades del sistema y bibliotecas necesarias de RyzenAdj. No se usa pacman para modificar el sistema.
+Use `Ally-Power-Escritorio-1.0.0.zip` or select it in the suite. Its `Ally-Power-1.0.0-SteamOS-x86_64.run` is rebuilt from the included sources. System authorization is requested without storing your password. Close the app and tray first. Installs application/helper under `/usr/local`, without permanent application services or applying settings during installation.
 
-## Uso y convivencia
+Dependencies include Python/PyGObject GTK4, `pkexec`, `kdialog`, system utilities and RyzenAdj libraries. The installer does not modify SteamOS through pacman.
 
-Abre Ally Power en el menú. Usa los controles de la app y su comportamiento original de Aplicar; **la petición de cambios en tiempo real corresponde al plugin Decky**, no se cambia aquí la app ya existente. El helper autorizado limita las escrituras a CPU/TDP y comparte `/run/desktop-power.lock` con Decky.
+Open Ally Power from the menu and use its existing **Apply** behavior; live changes are a Decky-plugin feature, not a change to this desktop app. The authorized helper limits writes to CPU/TDP and shares `/run/desktop-power.lock` with Decky.
 
-No lo uses a la vez que otro gestor de potencia/SMT. El cierre normal conserva los últimos ajustes; una caída del controlador puede restaurar los dominios todavía controlados. Cierra la app antes de usar el plugin en Gaming. No se promete neutralizar gestores externos desconocidos.
+Do not use it alongside another power/SMT manager. Normal close retains the last settings; a controller failure may restore domains still owned. Close the app before Decky Gaming. Unknown external managers cannot be guaranteed neutralized.
 
-En **Estado actual**, `Consumo global actual: XX.X W` se actualiza cada dos
-segundos leyendo la descarga de la batería interna (BAT0/BATn), no el TDP
-configurado ni la batería de mandos. Usa potencia en microvatios o corriente
-por voltaje si es necesario. Al cargar, dejar de descargar o faltar datos,
-indica ese estado sin mostrar la potencia de carga como consumo global.
-Esta lectura no cambia el funcionamiento de Aplicar, límites TDP, SMT o cierre.
+## Actual power and topology
 
-## Desinstalar / reconstruir
+**Estado actual** updates **Consumo global actual: XX.X W** every two seconds from internal BAT0/BATn discharge, not configured TDP or a controller battery. It uses microwatts or current × voltage. Charging/not discharging/missing data are shown as status, never charging power mislabeled as consumption. This read does not change Apply, limits, SMT or close behavior.
 
-Desinstalador del menú o `bash Ally-Power-1.0.0-SteamOS-x86_64.run --uninstall`. Conserva copia recuperable. Algunas actualizaciones de SteamOS pueden sustituir `/usr/local`; guarda el instalador para reinstalar.
+The distribution filename remains 1.0.0 and includes corrected physical topology discovery. The installer creates protected `/usr/local/lib/desktop-power/cpu-topology.json` on the destination computer, not the builder. Unprivileged UI then retains correct limits with SMT/cores offline. A fresh install with unidentifiable offline CPUs stops without replacing the existing installation and asks you to enable all cores/SMT using your current manager first. It does not change hardware to inspect topology.
 
-Fuentes: [`components/ally-power`](../components/ally-power). Guías originales: [LEEME](../components/ally-power/LEEME.md), [REBUILD](../components/ally-power/REBUILD.md), [terceros](../components/ally-power/THIRD-PARTY.md). Código MIT, RyzenAdj LGPL/GPL según sus archivos y fuentes correspondientes; PNG aportado excluido de MIT.
+## Removal and sources
 
+Use the menu uninstaller or `bash Ally-Power-1.0.0-SteamOS-x86_64.run --uninstall`; a recoverable copy remains. SteamOS updates may replace `/usr/local`, so keep the installer.
 
-## Núcleos e hilos
-
-Esta revisión conserva el nombre `Ally-Power-Escritorio-1.0.0.zip` e incorpora
-la detección física corregida. El instalador genera la instantánea protegida
-`/usr/local/lib/desktop-power/cpu-topology.json` en el equipo destino, no en el
-constructor. Así la ventana sin privilegios conserva los límites correctos al
-apagar SMT o núcleos. Si una instalación nueva arranca con CPU offline que el
-kernel no identifica, detiene la instalación sin reemplazar lo existente e indica
-activar SMT/todos los núcleos con el gestor actual antes de volver a instalar.
-No cambia hardware para registrar esa información. Se mantiene Aplicar y el
-comportamiento existente al cerrar.
+[Source](../components/ally-power) · original Spanish [LEEME](../components/ally-power/LEEME.md), [REBUILD](../components/ally-power/REBUILD.md), [third-party notices](../components/ally-power/THIRD-PARTY.md). Own code MIT; RyzenAdj retains its LGPL/GPL component terms and corresponding sources. Supplied PNG is excluded from MIT.
